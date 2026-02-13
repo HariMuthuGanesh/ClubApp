@@ -1,7 +1,7 @@
 import java.util.*;
 import Clubs.*;
 import Manage.*;
-import Validator.Validator;
+import validator.Validator;
 import Details.getAdminDetails;
 
 public class clubApp {
