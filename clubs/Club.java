@@ -89,4 +89,18 @@ public class Club {
         }
         return false;
     }
+
+    public boolean registerStudentForEvent(User student, int eventIndex) {
+        if (eventIndex >= 0 && eventIndex < events.size()) {
+            Event event = events.get(eventIndex);
+            if (event.isRegistered(student)) {
+                System.out.println("Already registered for this event.");
+                return false;
+            }
+            event.addAttendee(student);
+            return true;
+        }
+        System.out.println("Invalid event index.");
+        return false;
+    }
 }

@@ -1,3 +1,3 @@
-ADMIN,Hari,hari@gmail.com,Hari@123
-COORD,Muthu,muthu@gmail.com,Muthu@123
-STUDENT,Ganesh,ganesh@gmail.com,Ganesh@123
+ADMIN|Hari|hari@gmail.com|Hari@123
+COORD|Muthu|muthu@gmail.com|Muthu@123
+STUDENT|Ganesh|ganesh@gmail.com|Ganesh@123

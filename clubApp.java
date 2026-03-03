@@ -229,7 +229,8 @@ public class clubApp {
             System.out.println("2. Select Club to View Events");
             System.out.println("3. Join a Club");
             System.out.println("4. View My Joined Clubs");
-            System.out.println("5. Logout");
+            System.out.println("5. Register for an Event");
+            System.out.println("6. Logout");
             System.out.print("Select Choice: ");
             String choice = sc.nextLine();
 
@@ -267,6 +268,30 @@ public class clubApp {
                 System.out.println("\n--- Your Joined Clubs ---");
                 clubManager.listJoinedClubs(student);
             } else if (choice.equals("5")) {
+                clubManager.listAllClubs();
+                if (clubManager.getClubCount() > 0) {
+                    System.out.print("Enter club number to see events: ");
+                    try {
+                        int cIdx = Integer.parseInt(sc.nextLine()) - 1;
+                        Club selected = clubManager.getClubByIndex(cIdx);
+                        if (selected != null) {
+                            selected.listEvents();
+                            if (!selected.getEvents().isEmpty()) {
+                                System.out.print("Enter event number to register: ");
+                                int eIdx = Integer.parseInt(sc.nextLine()) - 1;
+                                if (selected.registerStudentForEvent(student, eIdx)) {
+                                    clubManager.saveAll();
+                                    System.out.println("Successfully registered for the event!");
+                                }
+                            }
+                        } else {
+                            System.out.println("Invalid club number!");
+                        }
+                    } catch (Exception e) {
+                        System.out.println("Invalid input!");
+                    }
+                }
+            } else if (choice.equals("6")) {
                 break;
             } else {
                 System.out.println("Invalid choice!");

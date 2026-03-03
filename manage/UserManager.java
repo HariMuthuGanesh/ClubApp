@@ -77,11 +77,11 @@ public class UserManager {
     private void saveUsers() {
         try (PrintWriter writer = new PrintWriter(new FileWriter(FILE_PATH))) {
             for (Admin a : admins)
-                writer.println("ADMIN," + a.getName() + "||" + a.getEmail() + "||" + a.getPassword());
+                writer.println("ADMIN|" + a.getName() + "|" + a.getEmail() + "|" + a.getPassword());
             for (User u : coordinators)
-                writer.println("COORD," + u.getName() + "||" + u.getEmail() + "||" + u.getPassword());
+                writer.println("COORD|" + u.getName() + "|" + u.getEmail() + "|" + u.getPassword());
             for (User u : students)
-                writer.println("STUDENT," + u.getName() + "||" + u.getEmail() + "||" + u.getPassword());
+                writer.println("STUDENT|" + u.getName() + "|" + u.getEmail() + "|" + u.getPassword());
         } catch (IOException e) {
             System.err.println("Error saving users: " + e.getMessage());
         }
@@ -95,7 +95,7 @@ public class UserManager {
         try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
             String line;
             while ((line = reader.readLine()) != null) {
-                String[] parts = line.split("||");
+                String[] parts = line.split("\\|");
                 if (parts.length < 4)
                     continue;
                 String role = parts[0];

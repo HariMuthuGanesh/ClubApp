@@ -11,6 +11,7 @@ public class ClubManager {
     private static final String CLUBS_FILE = "file/clubs.txt";
     private static final String EVENTS_FILE = "file/events.txt";
     private static final String MEMBERS_FILE = "file/members.txt";
+    private static final String REGISTRATIONS_FILE = "file/event_registrations.txt";
 
     public void addClub(Club club) {
         clubs.add(club);
@@ -102,6 +103,16 @@ public class ClubManager {
                     memberWriter.println(club.getClubName() + "|" + m.getEmail());
                 }
             }
+
+            try (PrintWriter regWriter = new PrintWriter(new FileWriter(REGISTRATIONS_FILE))) {
+                for (Club club : clubs) {
+                    for (Event e : club.getEvents()) {
+                        for (User attendee : e.getAttendees()) {
+                            regWriter.println(club.getClubName() + "|" + e.getName() + "|" + attendee.getEmail());
+                        }
+                    }
+                }
+            }
         } catch (IOException e) {
             System.err.println("Error saving club data: " + e.getMessage());
         }
@@ -168,6 +179,33 @@ public class ClubManager {
                 }
             } catch (IOException e) {
                 System.err.println("Error loading members: " + e.getMessage());
+            }
+        }
+
+        // Load Event Registrations
+        File regFile = new File(REGISTRATIONS_FILE);
+        if (regFile.exists()) {
+            try (BufferedReader reader = new BufferedReader(new FileReader(regFile))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    String[] parts = line.split("\\|");
+                    if (parts.length < 3)
+                        continue;
+                    Club club = findClubByName(parts[0]);
+                    if (club != null) {
+                        for (Event e : club.getEvents()) {
+                            if (e.getName().equalsIgnoreCase(parts[1])) {
+                                User student = userManager.findStudentByEmail(parts[2]);
+                                if (student != null) {
+                                    e.addAttendee(student);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+            } catch (IOException e) {
+                System.err.println("Error loading registrations: " + e.getMessage());
             }
         }
     }
