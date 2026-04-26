@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>NEC ClubApp — Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="/css/style.css"/>
+</head>
+<body class="dashboard-body">
+
+<!-- ── SIDEBAR ─────────────────────────────────── -->
+<aside class="sidebar">
+    <div class="sidebar-logo">
+        <div class="logo-icon">NEC</div>
+        <div class="logo-text">
+            <span class="logo-title">ClubApp</span>
+            <span class="logo-sub">NEC Kovilpatti</span>
+        </div>
+    </div>
+
+    <nav class="sidebar-nav" id="sidebar-nav">
+        <!-- Populated by JS based on role -->
+    </nav>
+
+    <div class="sidebar-footer">
+        <div class="user-card" onclick="openProfileModal()">
+            <div class="user-avatar" id="sidebar-avatar">U</div>
+            <div class="user-info">
+                <strong id="sidebar-name">Loading...</strong>
+                <span id="sidebar-role"></span>
+            </div>
+        </div>
+        <button class="btn btn-ghost btn-sm btn-full" onclick="logout()">🚪 Logout</button>
+    </div>
+</aside>
+
+<!-- ── MAIN ─────────────────────────────────────── -->
+<main class="main-content">
+
+    <!-- ── OVERVIEW SECTION ───────────────────── -->
+    <section id="section-overview" class="section active">
+        <div class="page-header">
+            <h1 id="overview-greeting">Welcome!</h1>
+            <span id="overview-role-badge" class="role-badge"></span>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-grid" id="overview-stats"></div>
+
+        <!-- News Feed (student) -->
+        <div id="news-block">
+            <div class="section-header">
+                <h2>📢 Latest News</h2>
+            </div>
+            <div class="news-feed" id="news-feed"></div>
+        </div>
+
+        <!-- Coordinator pending badge -->
+        <div id="coordinator-pending-block" class="hidden" style="margin-top:1.5rem;">
+            <div class="section-header">
+                <h2>⏳ Pending Join Requests</h2>
+                <button class="btn btn-primary btn-sm" onclick="showSection('section-my-club'); showClubTab('tab-requests')">View All</button>
+            </div>
+            <div id="pending-preview"></div>
+        </div>
+
+        <!-- Upcoming events -->
+        <div style="margin-top:1.5rem;">
+            <div class="section-header">
+                <h2>🎯 Upcoming Events</h2>
+            </div>
+            <div class="poster-grid" id="overview-events"></div>
+        </div>
+    </section>
+
+    <!-- ── ALL CLUBS SECTION ───────────────────── -->
+    <section id="section-all-clubs" class="section">
+        <div class="page-header">
+            <h1>🏛 All Clubs</h1>
+        </div>
+        <div class="filter-bar">
+            <input type="text" id="club-search" placeholder="🔍 Search clubs..." oninput="filterClubs()" />
+            <select id="club-dept-filter" onchange="filterClubs()">
+                <option value="">All Departments</option>
+                <option value="CSE">CSE</option>
+                <option value="ECE">ECE</option>
+                <option value="EEE">EEE</option>
+                <option value="MECH">Mechanical</option>
+                <option value="CIVIL">Civil</option>
+                <option value="IT">IT</option>
+                <option value="AIDS">AI & DS</option>
+                <option value="CSBS">CSBS</option>
+            </select>
+        </div>
+        <div class="cards-grid" id="all-clubs-grid"></div>
+    </section>
+
+    <!-- ── MY CLUBS SECTION (Student) ─────────── -->
+    <section id="section-my-clubs" class="section">
+        <div class="page-header">
+            <h1>⭐ My Clubs</h1>
+        </div>
+        <div class="cards-grid" id="my-clubs-grid"></div>
+
+        <div style="margin-top:2rem;">
+            <div class="section-header"><h2>📨 My Join Requests</h2></div>
+            <div id="my-requests-list"></div>
+        </div>
+    </section>
+
+    <!-- ── CLUB DETAIL VIEW ────────────────────── -->
+    <section id="section-club-detail" class="section">
+        <button class="back-btn" onclick="goBackFromClub()">← Back</button>
+        <div id="club-detail-content"></div>
+    </section>
+
+    <!-- ── EVENT DETAIL VIEW ──────────────────── -->
+    <section id="section-event-detail" class="section">
+        <button class="back-btn" onclick="goBackFromEvent()">← Back to Club</button>
+        <div id="event-detail-content"></div>
+    </section>
+
+    <!-- ── MY CLUB (Coordinator) ──────────────── -->
+    <section id="section-my-club" class="section">
+        <div class="page-header">
+            <h1>🏅 My Club</h1>
+        </div>
+        <div id="my-club-content"></div>
+    </section>
+
+</main>
+
+<!-- ── MODALS ──────────────────────────────────── -->
+
+<!-- Join Request Modal -->
+<div id="modal-join" class="modal-overlay hidden">
+    <div class="modal">
+        <h3>✉️ Send Join Request</h3>
+        <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1rem;">
+            Write a short message to the coordinator explaining why you want to join.
+        </p>
+        <div class="form-group">
+            <label>Your Message</label>
+            <textarea id="join-message" rows="4" placeholder="I want to join because..."></textarea>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeModal('modal-join')">Cancel</button>
+            <button class="btn btn-primary" onclick="submitJoinRequest()">Send Request</button>
+        </div>
+    </div>
+</div>
+
+<!-- Manage Event Modal -->
+<div id="modal-event" class="modal-overlay hidden">
+    <div class="modal">
+        <h3 id="event-modal-title">➕ Create New Event</h3>
+        <div class="auth-form">
+            <div class="form-group">
+                <label>Event Name *</label>
+                <input type="text" id="ev-name" placeholder="Event name" required/>
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <textarea id="ev-desc" rows="3" placeholder="About this event..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>Venue</label>
+                <input type="text" id="ev-venue" placeholder="e.g. Main Auditorium"/>
+            </div>
+            <div class="form-group">
+                <label>Date</label>
+                <input type="date" id="ev-date"/>
+            </div>
+            <div class="form-group">
+                <label>Time</label>
+                <input type="time" id="ev-time"/>
+            </div>
+            <div class="form-group">
+                <label>Max Attendees (Limit)</label>
+                <input type="number" id="ev-limit" placeholder="Leave empty for unlimited"/>
+            </div>
+            <div class="form-group" style="flex-direction:row;align-items:center;gap:0.5rem;">
+                <input type="checkbox" id="ev-members-only" style="width:auto;"/>
+                <label for="ev-members-only" style="margin:0;">Members only event</label>
+            </div>
+            <div class="form-group">
+                <label id="ev-poster-label">Event Poster (image)</label>
+                <input type="file" id="ev-poster" accept="image/*"/>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeModal('modal-event')">Cancel</button>
+            <button class="btn btn-primary" id="event-submit-btn" onclick="submitEvent()">Create Event</button>
+        </div>
+    </div>
+</div>
+
+<!-- View Attendees Modal -->
+<div id="modal-attendees" class="modal-overlay hidden">
+    <div class="modal" style="max-width:600px;">
+        <h3>👥 Registered Members</h3>
+        <div id="attendees-list-content" style="max-height:400px;overflow-y:auto;margin:1rem 0;"></div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeModal('modal-attendees')">Close</button>
+        </div>
+    </div>
+</div>
+
+    </div>
+</div>
+
+<!-- Attendance Modal -->
+<div id="modal-attendance" class="modal-overlay hidden">
+    <div class="modal" style="max-width:600px;">
+        <h3>📋 Mark Attendance</h3>
+        <div id="attendance-list"></div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeModal('modal-attendance')">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Club Modal -->
+<div id="modal-edit-club" class="modal-overlay hidden">
+    <div class="modal">
+        <h3>🏛 Edit Club Information</h3>
+        <div class="auth-form">
+            <div class="form-group"><label>Club Name *</label><input id="ec-name" type="text" /></div>
+            <div class="form-group"><label>Department *</label>
+                <select id="ec-dept">
+                    <option value="">Select</option>
+                    <option value="CSE">CSE</option><option value="ECE">ECE</option>
+                    <option value="EEE">EEE</option><option value="MECH">Mechanical</option>
+                    <option value="CIVIL">Civil</option><option value="IT">IT</option>
+                    <option value="AIDS">AI & DS</option><option value="CSBS">CSBS</option>
+                    <option value="General">General</option>
+                </select>
+            </div>
+            <div class="form-group"><label>Founded Year</label><input id="ec-year" type="number" /></div>
+            <div class="form-group"><label>Description</label><textarea id="ec-desc" rows="3"></textarea></div>
+            <div class="form-group"><label>Vision</label><textarea id="ec-vision" rows="2"></textarea></div>
+            <div class="form-group"><label>Mission</label><textarea id="ec-mission" rows="2"></textarea></div>
+            <div class="form-group">
+                <label>Club Logo</label>
+                <input type="file" id="ec-logo-file" accept="image/*" />
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeModal('modal-edit-club')">Cancel</button>
+            <button class="btn btn-primary" onclick="submitEditClub()">Save Changes</button>
+        </div>
+    </div>
+</div>
+
+<!-- Profile Modal -->
+<div id="modal-profile" class="modal-overlay hidden">
+    <div class="modal">
+        <div class="profile-modal-header">
+            <div class="profile-modal-avatar" id="profile-avatar-modal">U</div>
+            <h3 id="profile-modal-name" style="margin-bottom: 0.25rem;">User Name</h3>
+            <p id="profile-modal-email" style="font-size: 0.85rem; color: var(--text-muted);">user@example.com</p>
+        </div>
+        
+        <div class="tabs" style="margin-bottom: 1.25rem;">
+            <button class="tab-pill active" id="btn-tab-edit" onclick="switchProfileTab('edit')">Edit Profile</button>
+            <button class="tab-pill" id="btn-tab-pass" onclick="switchProfileTab('password')">Change Password</button>
+        </div>
+
+        <!-- Edit Profile Tab -->
+        <div id="profile-tab-edit" class="tab-content active">
+            <div class="auth-form">
+                <div class="form-group"><label>Full Name</label><input type="text" id="prof-name"/></div>
+                <div id="student-only-fields">
+                    <div class="form-group"><label>Department</label>
+                        <select id="prof-dept">
+                            <option value="">Select</option>
+                            <option value="CSE">CSE</option><option value="ECE">ECE</option>
+                            <option value="EEE">EEE</option><option value="MECH">Mechanical</option>
+                            <option value="CIVIL">Civil</option><option value="IT">IT</option>
+                            <option value="AIDS">AI & DS</option><option value="CSBS">CSBS</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Year</label>
+                        <select id="prof-year">
+                            <option value="">Select</option>
+                            <option value="I">I Year</option><option value="II">II Year</option>
+                            <option value="III">III Year</option><option value="IV">IV Year</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeModal('modal-profile')">Close</button>
+                <button class="btn btn-primary" onclick="updateProfile()">Save Changes</button>
+            </div>
+        </div>
+
+        <!-- Password Tab -->
+        <div id="profile-tab-password" class="tab-content">
+            <div class="auth-form">
+                <div class="form-group"><label>Current Password</label><input type="password" id="pass-current"/></div>
+                <div class="form-group"><label>New Password</label><input type="password" id="pass-new" placeholder="Min 8 characters"/></div>
+                <div class="form-group"><label>Confirm New Password</label><input type="password" id="pass-confirm"/></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeModal('modal-profile')">Close</button>
+                <button class="btn btn-primary" onclick="changePassword()">Update Password</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast hidden"></div>
+
+<script src="/js/api.js"></script>
+<script src="/js/dashboard.js"></script>
+</body>
+</html>
