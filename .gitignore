@@ -3,3 +3,22 @@ target/
 *.md
 *.iml
 *.png
+# Build
+target/
+*.jar
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+
+# Env / secrets
+.env
+application.properties
+application.yml
+src/main/resources/application.yml
