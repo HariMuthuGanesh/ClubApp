@@ -20,8 +20,5 @@ target/
 # Env / secrets
 .env
 application.properties
-application.yml
-src/main/resources/application.yml
 
-.gitignore
 src/main/resources/application.properties
