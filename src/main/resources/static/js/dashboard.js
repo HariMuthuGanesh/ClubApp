@@ -441,6 +441,7 @@ async function openEventDetail(eventId, clubId) {
                     <div class="info-row"><span class="info-label">👥 Registered</span><span class="info-value">${ev.attendeeCount} ${ev.maxAttendees ? `/ ${ev.maxAttendees}` : ''} people</span></div>
                     <div class="info-row"><span class="info-label">🔒 Access</span><span class="info-value">${ev.membersOnly ? 'Members Only' : 'Open to All'}</span></div>
                     ${ev.description ? `<div class="info-row"><span class="info-label">📝 About</span><span class="info-value">${ev.description}</span></div>` : ''}
+                    ${ev.winners ? `<div class="info-row" style="background:#fef3c7;border-radius:8px;padding:12px;margin-top:10px;"><span class="info-label" style="color:#92400e;">🏆 Winners</span><span class="info-value" style="font-weight:700;color:#92400e;">${ev.winners}</span></div>` : ''}
                     <div style="margin-top:1.25rem;">
                         ${isRegistered
                             ? `<span style="color:var(--success);font-weight:600;">✔ You are registered</span>`
@@ -1061,7 +1062,7 @@ async function loadNewsFeed() {
             return;
         }
         feed.innerHTML = news.map(n => `
-            <div class="news-item ${n.clubDept === 'ALL' ? 'my-club' : ''}">
+            <div class="news-item ${n.clubDept === 'ALL' ? 'my-club' : ''}" onclick="openClubDetail(${n.clubId})" style="cursor:pointer;">
                 <div class="news-content">
                     <h4>${n.title}</h4>
                     <p>${n.content}</p>
