@@ -11,4 +11,5 @@ public class CreateEventRequest {
     private String time;
     private boolean membersOnly;
     private Integer maxAttendees;
+    private String winners;
 }

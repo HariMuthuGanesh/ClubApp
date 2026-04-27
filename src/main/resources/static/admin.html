@@ -108,7 +108,10 @@
     <section id="section-users" class="section">
         <div class="page-header">
             <h1>👥 All Users</h1>
-            <button class="btn btn-primary" onclick="openModal('modal-create-coordinator')">+ Create Coordinator</button>
+            <div style="display:flex;gap:0.5rem;">
+                <button class="btn btn-gold" onclick="openModal('modal-create-admin')">🛡 Create Admin</button>
+                <button class="btn btn-primary" onclick="openModal('modal-create-coordinator')">+ Create Coordinator</button>
+            </div>
         </div>
         <div class="filter-bar">
             <input type="text" id="user-search" placeholder="🔍 Search users..." oninput="filterUsers()"/>
@@ -194,9 +197,9 @@
                     <option value="">Select</option>
                     <option value="CSE">CSE</option><option value="ECE">ECE</option>
                     <option value="EEE">EEE</option><option value="MECH">Mechanical</option>
-                    <option value="CIVIL">Civil</option><option value="IT">IT</option>
+                    <option value="CIVIL">Civil</option><option value="IT">IT</option><option value="ITU">ITU</option>
                     <option value="AIDS">AI & DS</option><option value="CSBS">CSBS</option>
-                    <option value="General">General</option>
+                    <option value="ALL">All Departments</option>
                 </select>
             </div>
             <div class="form-group"><label>Founded Year</label><input id="cc-year" type="number" placeholder="e.g. 2010" min="1984" max="2100"/></div>
@@ -212,6 +215,33 @@
         <div class="modal-footer">
             <button class="btn btn-ghost" onclick="closeModal('modal-create-club')">Cancel</button>
             <button class="btn btn-primary" onclick="submitCreateClub()">Create Club</button>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Club -->
+<div id="modal-edit-club" class="modal-overlay hidden">
+    <div class="modal">
+        <h3>✏️ Edit Club Details</h3>
+        <div class="auth-form">
+            <div class="form-group"><label>Club Name *</label><input id="ec-name" type="text"/></div>
+            <div class="form-group"><label>Department</label>
+                <select id="ec-dept">
+                    <option value="CSE">CSE</option><option value="ECE">ECE</option>
+                    <option value="EEE">EEE</option><option value="MECH">Mechanical</option>
+                    <option value="CIVIL">Civil</option><option value="IT">IT</option><option value="ITU">ITU</option>
+                    <option value="AIDS">AI & DS</option><option value="CSBS">CSBS</option>
+                    <option value="ALL">All Departments</option>
+                </select>
+            </div>
+            <div class="form-group"><label>Founded Year</label><input id="ec-year" type="number"/></div>
+            <div class="form-group"><label>Description</label><textarea id="ec-desc" rows="2"></textarea></div>
+            <div class="form-group"><label>Vision</label><textarea id="ec-vision" rows="2"></textarea></div>
+            <div class="form-group"><label>Mission</label><textarea id="ec-mission" rows="2"></textarea></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeModal('modal-edit-club')">Cancel</button>
+            <button class="btn btn-primary" onclick="submitEditClub()">Save Changes</button>
         </div>
     </div>
 </div>
@@ -253,6 +283,24 @@
         <div class="modal-footer">
             <button class="btn btn-ghost" onclick="closeModal('modal-change-coordinator')">Cancel</button>
             <button class="btn btn-primary" onclick="submitChangeCoordinator()">Update</button>
+        </div>
+    </div>
+</div>
+
+<!-- Create Admin -->
+<div id="modal-create-admin" class="modal-overlay hidden">
+    <div class="modal">
+        <h3>🛡 Create Admin Account</h3>
+        <p style="font-size:0.83rem;color:var(--text-muted);margin-bottom:1rem;">An admin secret key is required to create a new admin account.</p>
+        <div class="auth-form">
+            <div class="form-group"><label>Full Name *</label><input id="na-name" type="text" placeholder="Admin full name"/></div>
+            <div class="form-group"><label>Email *</label><input id="na-email" type="email" placeholder="admin@nec.edu.in"/></div>
+            <div class="form-group"><label>Password *</label><input id="na-password" type="password" placeholder="Min 8 chars"/></div>
+            <div class="form-group"><label>Admin Secret Key *</label><input id="na-secret" type="password" placeholder="Ask the system administrator"/></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeModal('modal-create-admin')">Cancel</button>
+            <button class="btn btn-gold" onclick="submitCreateAdmin()">Create Admin</button>
         </div>
     </div>
 </div>

@@ -2,12 +2,14 @@ package com.clubapp.controller;
 
 import com.clubapp.dto.request.CreateCoordinatorRequest;
 import com.clubapp.dto.response.*;
+import com.clubapp.entity.User;
 import com.clubapp.service.AdminService;
 import com.clubapp.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -83,6 +85,13 @@ public class AdminController {
         return ResponseEntity.status(HttpStatus.CREATED).body(userService.createCoordinator(req));
     }
 
+    @PostMapping("/users/admin")
+    public ResponseEntity<UserResponse> createAdmin(
+            @Valid @RequestBody CreateCoordinatorRequest req,
+            @RequestHeader("X-Admin-Secret") String secret) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(userService.createAdmin(req, secret));
+    }
+
     @PutMapping("/users/{id}/promote")
     public ResponseEntity<UserResponse> promote(@PathVariable Long id) {
         return ResponseEntity.ok(userService.promoteToCoordinator(id));
@@ -91,6 +100,15 @@ public class AdminController {
     @DeleteMapping("/users/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         userService.deleteUser(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/users/{id}/force")
+    public ResponseEntity<Void> forceDeleteUser(
+            @PathVariable Long id,
+            @RequestHeader("X-Admin-Secret") String secret,
+            @AuthenticationPrincipal User currentUser) {
+        userService.deleteUserWithSecret(id, secret, currentUser);
         return ResponseEntity.noContent().build();
     }
 }

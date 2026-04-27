@@ -17,4 +17,5 @@ public class EventResponse {
     private Integer maxAttendees;
     private boolean isRegistered;
     private boolean isFull;
+    private String winners;
 }

@@ -99,7 +99,7 @@ async function loadOverview() {
                 ];
             }
             loadCoordinatorPending();
-            document.getElementById('news-block').classList.add('hidden');
+            loadNewsFeed();
         } else {
             events = await api.get('/events/ongoing');
             const myClubs = await api.get('/clubs/mine');
@@ -191,7 +191,7 @@ async function loadNewsFeed() {
         }
         feed.innerHTML = clubs.flatMap(club =>
             (club.eventCount > 0) ? [`
-                <div class="news-item ${myIds.has(club.id) ? 'my-club' : ''}">
+                <div class="news-item ${myIds.has(club.id) ? 'my-club' : ''}" onclick="openClubDetail(${club.id})" style="cursor:pointer;">
                     <div class="news-content">
                         <h4>${club.name}</h4>
                         <p>${club.eventCount} event(s) scheduled</p>
@@ -251,7 +251,7 @@ function renderClubCards(clubs, containerId) {
                 ${statusBadge}
                 <div class="club-logo">${logo}</div>
                 <div class="club-name">${club.name}</div>
-                <div class="club-dept">${club.department || 'General'}</div>
+                <div class="club-dept">${club.department === 'ALL' ? 'All Departments' : (club.department || 'General')}</div>
                 <div class="club-desc">${club.description || 'No description yet.'}</div>
                 <div class="club-meta">
                     <span>👥 ${club.memberCount} members</span>
@@ -318,7 +318,8 @@ async function openClubDetail(clubId) {
             api.get(`/clubs/${clubId}/events`)
         ]);
 
-        const today    = new Date().toISOString().split('T')[0];
+        const tzOffset = (new Date()).getTimezoneOffset() * 60000;
+        const today    = (new Date(Date.now() - tzOffset)).toISOString().split('T')[0];
         const upcoming = events.filter(e => e.date >= today);
         const past     = events.filter(e => e.date < today);
 
@@ -343,7 +344,7 @@ async function openClubDetail(clubId) {
                             <h1 style="font-size:1.5rem;font-weight:700;color:var(--nec-blue);">${club.name}</h1>
                             ${joinBtn}
                         </div>
-                        <div style="font-size:0.85rem;color:var(--nec-blue);font-weight:500;margin:4px 0;">${club.department || ''} ${club.foundedYear ? '· Est. ' + club.foundedYear : ''}</div>
+                        <div style="font-size:0.85rem;color:var(--nec-blue);font-weight:500;margin:4px 0;">${club.department === 'ALL' ? 'All Departments' : (club.department || '')} ${club.foundedYear ? '· Est. ' + club.foundedYear : ''}</div>
                         <div style="font-size:0.88rem;color:var(--text-secondary);margin-top:6px;">${club.description || ''}</div>
                         <div style="margin-top:0.75rem;font-size:0.82rem;color:var(--text-muted);">👤 Coordinator: <strong>${club.coordinatorName}</strong></div>
                         <div style="display:flex;gap:1rem;margin-top:0.5rem;font-size:0.82rem;color:var(--text-muted);">
@@ -415,9 +416,11 @@ async function openEventDetail(eventId, clubId) {
         const ev     = events.find(e => e.id === eventId);
         if (!ev) throw new Error('Event not found');
 
+        const todayStr = new Date().toISOString().split('T')[0];
+        const isPast   = ev.date && ev.date < todayStr;
         const isRegistered = ev.isRegistered;
         const isFull       = ev.isFull;
-        const canRegister  = role === 'STUDENT' && !ev.isRegistered && !ev.isFull;
+        const canRegister  = role === 'STUDENT' && !ev.isRegistered && !ev.isFull && !isPast;
 
         const posterHTML = ev.posterImage
             ? `<img src="/uploads/${ev.posterImage}" alt="${ev.name}" style="width:100%;display:block;"/>`
@@ -441,12 +444,22 @@ async function openEventDetail(eventId, clubId) {
                     <div style="margin-top:1.25rem;">
                         ${isRegistered
                             ? `<span style="color:var(--success);font-weight:600;">✔ You are registered</span>`
+                            : isPast
+                            ? `<span style="color:var(--text-muted);font-weight:600;">🕒 Event has ended</span>`
                             : isFull
                             ? `<span style="color:var(--danger);font-weight:600;">⚠️ Event is Full</span>`
                             : canRegister
                             ? `<button class="btn btn-primary" onclick="registerEvent(${ev.id}, event)">Register for this Event</button>`
                             : ''}
                     </div>
+                    ${ev.winners ? `
+                    <div style="margin-top:1.5rem;padding:1rem;background:rgba(212,175,55,0.1);border-left:4px solid var(--nec-gold);border-radius:4px;">
+                        <h3 style="font-size:1.05rem;color:var(--nec-gold);margin-bottom:0.75rem;font-weight:700;">🏆 Event Winners</h3>
+                        <ul style="margin:0;padding-left:1.25rem;color:var(--text-main);">
+                            ${ev.winners.split(',').map(w => `<li style="margin-bottom:4px;">${w.trim()}</li>`).join('')}
+                        </ul>
+                    </div>
+                    ` : ''}
                 </div>
             </div>`;
     } catch(e) {
@@ -497,7 +510,8 @@ async function loadMyClub() {
         const requests = await api.get('/clubs/requests/all');
         const members  = await api.get('/clubs/my-club/members');
 
-        const today    = new Date().toISOString().split('T')[0];
+        const tzOffset = (new Date()).getTimezoneOffset() * 60000;
+        const today    = (new Date(Date.now() - tzOffset)).toISOString().split('T')[0];
         const upcoming = events.filter(e => e.date >= today);
         const past     = events.filter(e => e.date < today);
         const pending  = requests.filter(r => r.status === 'PENDING');
@@ -519,6 +533,7 @@ async function loadMyClub() {
                     </div>
                     <div style="display:flex;gap:0.75rem;">
                         <button class="btn btn-outline-white btn-sm" onclick="openEditClubModal(${club.id})">✏️ Edit Club Info</button>
+                        <button class="btn btn-outline-white btn-sm" onclick="openNewsModal()">📢 Post News</button>
                         <button class="btn btn-gold btn-sm" onclick="openCreateEventModal()">+ Create Event</button>
                     </div>
                 </div>
@@ -531,6 +546,7 @@ async function loadMyClub() {
                     📨 Requests ${pending.length ? `<span style="background:var(--danger);color:white;border-radius:10px;padding:1px 7px;font-size:0.7rem;margin-left:4px;">${pending.length}</span>` : ''}
                 </button>
                 <button class="tab-pill" id="tab-members" onclick="showClubTab('tab-members')">👥 Members</button>
+                <button class="tab-pill" id="tab-news" onclick="showClubTab('tab-news')">📢 Announcements</button>
                 <button class="tab-pill" id="tab-info" onclick="showClubTab('tab-info')">ℹ️ Info</button>
             </div>
 
@@ -599,6 +615,16 @@ async function loadMyClub() {
                 </table>
             </div>
 
+            <!-- News Tab -->
+            <div id="tab-news-content" class="tab-content">
+                <div class="section-header">
+                    <h2>Recent Announcements</h2>
+                </div>
+                <div class="news-feed" id="my-club-news">
+                    <div class="loading-spinner">Loading news...</div>
+                </div>
+            </div>
+
             <!-- Info Tab -->
             <div id="tab-info-content" class="tab-content">
                 <div style="background:var(--bg-card);border-radius:var(--radius);padding:1.5rem;box-shadow:var(--shadow-sm);">
@@ -611,6 +637,7 @@ async function loadMyClub() {
                 </div>
             </div>`;
 
+        loadMyClubNews(club.id);
     } catch(e) {
         container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>Failed to load club.</p></div>`;
     }
@@ -635,6 +662,7 @@ function coordinatorEventCard(ev, today) {
             <div class="poster-footer" style="flex-wrap:wrap;gap:0.5rem;padding:0.5rem 1rem 1rem;">
                 ${isOngoing ? `<button class="btn btn-success btn-sm" onclick="openAttendance(${ev.id})">Attendance</button>` : ''}
                 <button class="btn btn-primary btn-sm" onclick="viewAttendees(${ev.id})">👥 View</button>
+                <button class="btn btn-info btn-sm" onclick="downloadAttendance(${ev.id})" style="background:var(--nec-gold);color:#000;">📥 Excel</button>
                 <button class="btn btn-ghost btn-sm" onclick="openEditEventModal(${ev.id})">✏️ Edit</button>
                 <button class="btn btn-danger btn-sm" onclick="deleteEvent(${ev.id})">🗑</button>
             </div>
@@ -698,6 +726,8 @@ function openCreateEventModal() {
     document.getElementById('ev-time').value = '';
     document.getElementById('ev-limit').value = '';
     document.getElementById('ev-members-only').checked = false;
+    document.getElementById('ev-winners').value = '';
+    document.getElementById('ev-winners-group').style.display = 'none';
     document.getElementById('ev-poster').value = '';
     document.getElementById('ev-poster-label').textContent = 'Event Poster (image)';
     document.getElementById('modal-event').classList.remove('hidden');
@@ -716,6 +746,17 @@ async function openEditEventModal(eventId) {
         document.getElementById('ev-time').value = ev.time || '';
         document.getElementById('ev-limit').value = ev.maxAttendees || '';
         document.getElementById('ev-members-only').checked = ev.membersOnly;
+        
+        const tzOffset = (new Date()).getTimezoneOffset() * 60000;
+        const today    = (new Date(Date.now() - tzOffset)).toISOString().split('T')[0];
+        if (ev.date < today) {
+            document.getElementById('ev-winners-group').style.display = 'block';
+            document.getElementById('ev-winners').value = ev.winners || '';
+        } else {
+            document.getElementById('ev-winners-group').style.display = 'none';
+            document.getElementById('ev-winners').value = '';
+        }
+        
         document.getElementById('ev-poster').value = '';
         document.getElementById('ev-poster-label').textContent = 'Update Poster (optional)';
         document.getElementById('modal-event').classList.remove('hidden');
@@ -736,7 +777,8 @@ async function submitEvent() {
         date:         document.getElementById('ev-date').value,
         time:         document.getElementById('ev-time').value,
         maxAttendees: parseInt(document.getElementById('ev-limit').value) || null,
-        membersOnly:  document.getElementById('ev-members-only').checked
+        membersOnly:  document.getElementById('ev-members-only').checked,
+        winners:      document.getElementById('ev-winners').value || null
     };
 
     try {
@@ -790,6 +832,15 @@ async function viewAttendees(eventId) {
         `;
     } catch(e) {
         showToast('Failed to load attendees.', 'error');
+    }
+}
+
+async function downloadAttendance(eventId) {
+    try {
+        await api.downloadFile(`/events/${eventId}/attendance/export`, `attendance_event_${eventId}.xlsx`);
+        showToast('Attendance sheet downloaded!', 'success');
+    } catch(e) {
+        showToast('Failed to download attendance.', 'error');
     }
 }
 
@@ -998,4 +1049,79 @@ async function changePassword() {
     } catch (e) {
         showToast(e.error || 'Failed to change password.', 'error');
     }
+}
+// ── News / Announcements ───────────────────────────────────────────────────
+async function loadNewsFeed() {
+    const feed = document.getElementById('news-feed');
+    if (!feed) return;
+    try {
+        const news = await api.get('/news');
+        if (!news.length) {
+            feed.innerHTML = `<div style="padding:1rem;color:var(--text-muted);font-size:0.85rem;">No recent announcements.</div>`;
+            return;
+        }
+        feed.innerHTML = news.map(n => `
+            <div class="news-item ${n.clubDept === 'ALL' ? 'my-club' : ''}">
+                <div class="news-content">
+                    <h4>${n.title}</h4>
+                    <p>${n.content}</p>
+                    <div style="font-size:0.7rem;color:var(--nec-blue);font-weight:600;margin-top:4px;">${n.clubName}</div>
+                </div>
+                <div class="news-date">${new Date(n.postedAt).toLocaleDateString()}</div>
+            </div>
+        `).join('');
+    } catch(e) { console.error(e); }
+}
+
+async function loadMyClubNews(clubId) {
+    const container = document.getElementById('my-club-news');
+    if (!container) return;
+    try {
+        const news = await api.get(`/news/club/${clubId}`);
+        if (!news.length) {
+            container.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><p>No announcements yet.</p></div>`;
+            return;
+        }
+        container.innerHTML = news.map(n => `
+            <div class="news-item">
+                <div class="news-content">
+                    <h4 style="color:var(--nec-blue);">${n.title}</h4>
+                    <p style="font-size:0.88rem;color:var(--text-secondary);">${n.content}</p>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.5rem;">
+                    <div class="news-date">${new Date(n.postedAt).toLocaleDateString()}</div>
+                    <button class="btn btn-ghost btn-sm" style="color:var(--danger);border-color:var(--danger);" onclick="deleteNews(${n.id})">Delete</button>
+                </div>
+            </div>
+        `).join('');
+    } catch(e) { console.error(e); }
+}
+
+function openNewsModal() {
+    document.getElementById('news-title').value = '';
+    document.getElementById('news-content').value = '';
+    document.getElementById('modal-news').classList.remove('hidden');
+}
+
+async function submitNews() {
+    if (!myClubData) return;
+    const title = document.getElementById('news-title').value.trim();
+    const content = document.getElementById('news-content').value.trim();
+    if (!title || !content) { showToast('Title and content are required.', 'error'); return; }
+
+    try {
+        await api.post('/news', { clubId: myClubData.id, title, content });
+        closeModal('modal-news');
+        showToast('Announcement posted!', 'success');
+        loadMyClub(); // Refresh
+    } catch(e) { showToast(e.error || 'Failed to post news.', 'error'); }
+}
+
+async function deleteNews(newsId) {
+    if (!confirm('Are you sure you want to delete this announcement?')) return;
+    try {
+        await api.delete(`/news/${newsId}`);
+        showToast('Announcement deleted.');
+        loadMyClub();
+    } catch(e) { showToast('Failed to delete.'); }
 }

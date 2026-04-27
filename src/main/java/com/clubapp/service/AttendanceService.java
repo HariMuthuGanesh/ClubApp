@@ -27,7 +27,7 @@ public class AttendanceService {
                 .orElseThrow(() -> new ResourceNotFoundException("Event not found: " + eventId));
         
         if (currentUser.getRole() == Role.COORDINATOR
-                && !event.getClub().getCoordinator().getId().equals(currentUser.getId())) {
+                && (event.getClub().getCoordinator() == null || !event.getClub().getCoordinator().getId().equals(currentUser.getId()))) {
             throw new IllegalArgumentException("You can only mark attendance for your own club's events.");
         }
 
@@ -51,7 +51,7 @@ public class AttendanceService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new ResourceNotFoundException("Event not found: " + eventId));
         if (currentUser.getRole() == Role.COORDINATOR
-                && !event.getClub().getCoordinator().getId().equals(currentUser.getId()))
+                && (event.getClub().getCoordinator() == null || !event.getClub().getCoordinator().getId().equals(currentUser.getId())))
             throw new IllegalArgumentException("Access denied.");
         return attendanceRepository.findByEvent(event).stream().map(this::mapToResponse).collect(Collectors.toList());
     }

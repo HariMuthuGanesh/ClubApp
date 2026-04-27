@@ -2,6 +2,7 @@ package com.clubapp.service;
 
 import com.clubapp.dto.request.*;
 import com.clubapp.dto.response.UserResponse;
+import com.clubapp.entity.Club;
 import com.clubapp.entity.Role;
 import com.clubapp.entity.User;
 import com.clubapp.exception.ResourceNotFoundException;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -52,6 +54,22 @@ public class UserService {
             throw new IllegalArgumentException("Invalid admin secret key.");
         if (userRepository.existsByEmail(req.getEmail()))
             throw new IllegalArgumentException("Email already registered.");
+        User user = User.builder()
+                .name(req.getName())
+                .email(req.getEmail())
+                .password(passwordEncoder.encode(req.getPassword()))
+                .role(Role.ADMIN)
+                .build();
+        return mapToResponse(userRepository.save(user));
+    }
+
+    // ── Admin creates another admin account ───────────────────────────────
+    @Transactional
+    public UserResponse createAdmin(CreateCoordinatorRequest req, String secret) {
+        if (!adminSecret.equals(secret))
+            throw new IllegalArgumentException("Invalid admin secret key.");
+        if (userRepository.existsByEmail(req.getEmail()))
+            throw new IllegalArgumentException("Email already registered: " + req.getEmail());
         User user = User.builder()
                 .name(req.getName())
                 .email(req.getEmail())
@@ -125,12 +143,42 @@ public class UserService {
     public void deleteUser(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + id));
-        clubRepository.findAll().forEach(club -> {
+        if (user.getRole() == Role.ADMIN)
+            throw new IllegalArgumentException("Cannot delete an admin account via this action. Use the super-admin delete with the secret key.");
+
+        // Remove from club member lists (avoids FK on club_members junction table)
+        List<Club> allClubs = clubRepository.findAll();
+        for (Club club : allClubs) {
             club.getMembers().removeIf(m -> m.getId().equals(id));
+            if (club.getCoordinator() != null && club.getCoordinator().getId().equals(id)) {
+                club.setCoordinator(null);
+            }
             clubRepository.save(club);
-        });
+        }
         attendanceRepository.deleteByUser(user);
         userRepository.delete(user);
+    }
+
+    // ── Super-admin delete: can remove any user including admins ──────────
+    @Transactional
+    public void deleteUserWithSecret(Long id, String secret, User currentUser) {
+        if (!adminSecret.equals(secret))
+            throw new IllegalArgumentException("Invalid admin secret key.");
+        User target = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + id));
+        if (target.getId().equals(currentUser.getId()))
+            throw new IllegalArgumentException("You cannot delete your own account.");
+
+        List<Club> allClubs = clubRepository.findAll();
+        for (Club club : allClubs) {
+            club.getMembers().removeIf(m -> m.getId().equals(id));
+            if (club.getCoordinator() != null && club.getCoordinator().getId().equals(id)) {
+                club.setCoordinator(null);
+            }
+            clubRepository.save(club);
+        }
+        attendanceRepository.deleteByUser(target);
+        userRepository.delete(target);
     }
 
     public UserResponse mapToResponse(User user) {

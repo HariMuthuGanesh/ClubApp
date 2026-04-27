@@ -110,7 +110,7 @@ public class ClubJoinRequestService {
         ClubJoinRequest request = joinRequestRepository.findById(requestId)
                 .orElseThrow(() -> new ResourceNotFoundException("Request not found: " + requestId));
         if (coordinator.getRole() != Role.ADMIN
-                && !request.getClub().getCoordinator().getId().equals(coordinator.getId()))
+                && (request.getClub().getCoordinator() == null || !request.getClub().getCoordinator().getId().equals(coordinator.getId())))
             throw new IllegalArgumentException("You are not the coordinator of this club.");
         return request;
     }

@@ -5,6 +5,7 @@ import com.clubapp.dto.response.EventResponse;
 import com.clubapp.dto.response.UserResponse;
 import com.clubapp.entity.*;
 import com.clubapp.exception.ResourceNotFoundException;
+import com.clubapp.repository.AttendanceRepository;
 import com.clubapp.repository.ClubRepository;
 import com.clubapp.repository.EventRepository;
 import lombok.RequiredArgsConstructor;
@@ -21,13 +22,14 @@ public class EventService {
 
     private final EventRepository eventRepository;
     private final ClubRepository clubRepository;
+    private final AttendanceRepository attendanceRepository;
 
     @Transactional
     public EventResponse createEvent(Long clubId, CreateEventRequest req, User currentUser) {
         Club club = clubRepository.findById(clubId)
                 .orElseThrow(() -> new ResourceNotFoundException("Club not found: " + clubId));
         if (currentUser.getRole() == Role.COORDINATOR
-                && !club.getCoordinator().getId().equals(currentUser.getId()))
+                && (club.getCoordinator() == null || !club.getCoordinator().getId().equals(currentUser.getId())))
             throw new IllegalArgumentException("You can only create events for your own club.");
         Event event = Event.builder().name(req.getName()).description(req.getDescription())
                 .venue(req.getVenue()).date(req.getDate()).time(req.getTime())
@@ -47,12 +49,13 @@ public class EventService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new ResourceNotFoundException("Event not found: " + eventId));
         if (currentUser.getRole() == Role.COORDINATOR
-                && !event.getClub().getCoordinator().getId().equals(currentUser.getId()))
+                && (event.getClub().getCoordinator() == null || !event.getClub().getCoordinator().getId().equals(currentUser.getId())))
             throw new IllegalArgumentException("You can only update your own club's events.");
         event.setName(req.getName()); event.setDescription(req.getDescription());
         event.setVenue(req.getVenue()); event.setDate(req.getDate());
         event.setTime(req.getTime()); event.setMembersOnly(req.isMembersOnly());
         event.setMaxAttendees(req.getMaxAttendees());
+        event.setWinners(req.getWinners());
         return mapToResponse(eventRepository.save(event), currentUser);
     }
 
@@ -61,8 +64,10 @@ public class EventService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new ResourceNotFoundException("Event not found: " + eventId));
         if (currentUser.getRole() == Role.COORDINATOR
-                && !event.getClub().getCoordinator().getId().equals(currentUser.getId()))
+                && (event.getClub().getCoordinator() == null || !event.getClub().getCoordinator().getId().equals(currentUser.getId())))
             throw new IllegalArgumentException("You can only delete your own club's events.");
+        
+        attendanceRepository.deleteByEvent(event);
         eventRepository.delete(event);
     }
 
@@ -83,6 +88,10 @@ public class EventService {
         
         if (event.getMaxAttendees() != null && event.getAttendees().size() >= event.getMaxAttendees())
             throw new IllegalArgumentException("This event is full.");
+        
+        String today = LocalDate.now().toString();
+        if (event.getDate() != null && event.getDate().compareTo(today) < 0)
+            throw new IllegalArgumentException("Cannot register for a past event.");
 
         event.getAttendees().add(currentUser);
         return mapToResponse(eventRepository.save(event), currentUser);
@@ -117,6 +126,7 @@ public class EventService {
                 .venue(event.getVenue()).date(event.getDate()).time(event.getTime())
                 .posterImage(event.getPosterImage()).membersOnly(event.isMembersOnly())
                 .maxAttendees(event.getMaxAttendees())
+                .winners(event.getWinners())
                 .clubId(event.getClub().getId()).clubName(event.getClub().getName())
                 .attendeeCount(event.getAttendees().size()).isRegistered(isRegistered)
                 .isFull(isFull).build();
@@ -126,7 +136,7 @@ public class EventService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new ResourceNotFoundException("Event not found: " + eventId));
         if (currentUser.getRole() == Role.COORDINATOR
-                && !event.getClub().getCoordinator().getId().equals(currentUser.getId()))
+                && (event.getClub().getCoordinator() == null || !event.getClub().getCoordinator().getId().equals(currentUser.getId())))
             throw new IllegalArgumentException("Access denied.");
         
         return event.getAttendees().stream().map(u -> UserResponse.builder()

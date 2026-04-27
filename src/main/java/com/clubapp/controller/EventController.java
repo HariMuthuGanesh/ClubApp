@@ -39,6 +39,16 @@ public class EventController {
         return ResponseEntity.ok(eventService.getEventsByClub(clubId, currentUser));
     }
 
+    @GetMapping("/api/clubs/{clubId}/events/ongoing")
+    public ResponseEntity<List<EventResponse>> getOngoingEventsByClub(@PathVariable Long clubId,
+                                                                      @AuthenticationPrincipal User currentUser) {
+        String today = java.time.LocalDate.now().toString();
+        List<EventResponse> ongoing = eventService.getEventsByClub(clubId, currentUser).stream()
+                .filter(e -> e.getDate() != null && e.getDate().compareTo(today) >= 0)
+                .collect(java.util.stream.Collectors.toList());
+        return ResponseEntity.ok(ongoing);
+    }
+
     @GetMapping("/api/events/ongoing")
     public ResponseEntity<List<EventResponse>> getOngoingEvents(@AuthenticationPrincipal User currentUser) {
         return ResponseEntity.ok(eventService.getOngoingEvents(currentUser));

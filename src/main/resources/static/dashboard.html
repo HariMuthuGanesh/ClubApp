@@ -83,13 +83,14 @@
         <div class="filter-bar">
             <input type="text" id="club-search" placeholder="🔍 Search clubs..." oninput="filterClubs()" />
             <select id="club-dept-filter" onchange="filterClubs()">
-                <option value="">All Departments</option>
+                <option value="">Show All</option>
+                <option value="ALL">All Departments (Inter-dept)</option>
                 <option value="CSE">CSE</option>
                 <option value="ECE">ECE</option>
                 <option value="EEE">EEE</option>
                 <option value="MECH">Mechanical</option>
                 <option value="CIVIL">Civil</option>
-                <option value="IT">IT</option>
+                <option value="IT">IT</option><option value="ITU">ITU</option>
                 <option value="AIDS">AI & DS</option>
                 <option value="CSBS">CSBS</option>
             </select>
@@ -185,6 +186,10 @@
                 <input type="checkbox" id="ev-members-only" style="width:auto;"/>
                 <label for="ev-members-only" style="margin:0;">Members only event</label>
             </div>
+            <div class="form-group" id="ev-winners-group" style="display:none;">
+                <label>Winners (comma-separated)</label>
+                <input type="text" id="ev-winners" placeholder="e.g. John Doe, Jane Smith"/>
+            </div>
             <div class="form-group">
                 <label id="ev-poster-label">Event Poster (image)</label>
                 <input type="file" id="ev-poster" accept="image/*"/>
@@ -196,7 +201,26 @@
         </div>
     </div>
 </div>
-
+<!-- Post News Modal -->
+<div id="modal-news" class="modal-overlay hidden">
+    <div class="modal">
+        <h3>📢 Post New Announcement</h3>
+        <div class="auth-form">
+            <div class="form-group">
+                <label>Title *</label>
+                <input type="text" id="news-title" placeholder="e.g. Next meeting agenda" required/>
+            </div>
+            <div class="form-group">
+                <label>Content *</label>
+                <textarea id="news-content" rows="5" placeholder="Details about the announcement..." required></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeModal('modal-news')">Cancel</button>
+            <button class="btn btn-primary" onclick="submitNews()">Post Announcement</button>
+        </div>
+    </div>
+</div>
 <!-- View Attendees Modal -->
 <div id="modal-attendees" class="modal-overlay hidden">
     <div class="modal" style="max-width:600px;">
@@ -233,9 +257,9 @@
                     <option value="">Select</option>
                     <option value="CSE">CSE</option><option value="ECE">ECE</option>
                     <option value="EEE">EEE</option><option value="MECH">Mechanical</option>
-                    <option value="CIVIL">Civil</option><option value="IT">IT</option>
+                    <option value="CIVIL">Civil</option><option value="IT">IT</option><option value="ITU">ITU</option>
                     <option value="AIDS">AI & DS</option><option value="CSBS">CSBS</option>
-                    <option value="General">General</option>
+                    <option value="ALL">All Departments</option>
                 </select>
             </div>
             <div class="form-group"><label>Founded Year</label><input id="ec-year" type="number" /></div>
@@ -278,7 +302,7 @@
                             <option value="">Select</option>
                             <option value="CSE">CSE</option><option value="ECE">ECE</option>
                             <option value="EEE">EEE</option><option value="MECH">Mechanical</option>
-                            <option value="CIVIL">Civil</option><option value="IT">IT</option>
+                            <option value="CIVIL">Civil</option><option value="IT">IT</option><option value="ITU">ITU</option>
                             <option value="AIDS">AI & DS</option><option value="CSBS">CSBS</option>
                         </select>
                     </div>

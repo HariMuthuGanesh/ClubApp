@@ -11,6 +11,11 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import java.io.IOException;
+import com.clubapp.service.AttendanceExportService;
+
 import java.util.List;
 
 /**
@@ -25,6 +30,7 @@ import java.util.List;
 public class AttendanceController {
 
     private final AttendanceService attendanceService;
+    private final AttendanceExportService attendanceExportService;
 
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATOR')")
@@ -41,5 +47,19 @@ public class AttendanceController {
             @PathVariable Long eventId,
             @AuthenticationPrincipal User currentUser) {
         return ResponseEntity.ok(attendanceService.getAttendanceByEvent(eventId, currentUser));
+    }
+
+    @GetMapping("/export")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATOR')")
+    public ResponseEntity<byte[]> exportAttendance(
+            @PathVariable Long eventId,
+            @AuthenticationPrincipal User currentUser) throws IOException {
+        byte[] excelData = attendanceExportService.generateAttendanceExcel(eventId, currentUser);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+        headers.setContentDispositionFormData("attachment", "attendance_event_" + eventId + ".xlsx");
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(excelData);
     }
 }

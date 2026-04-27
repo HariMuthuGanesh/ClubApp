@@ -4,6 +4,7 @@ import com.clubapp.dto.request.CreateClubRequest;
 import com.clubapp.dto.response.ClubResponse;
 import com.clubapp.entity.*;
 import com.clubapp.exception.ResourceNotFoundException;
+import com.clubapp.repository.AttendanceRepository;
 import com.clubapp.repository.ClubJoinRequestRepository;
 import com.clubapp.repository.ClubRepository;
 import com.clubapp.repository.UserRepository;
@@ -22,6 +23,7 @@ public class ClubService {
     private final ClubRepository clubRepository;
     private final UserRepository userRepository;
     private final ClubJoinRequestRepository joinRequestRepository;
+    private final AttendanceRepository attendanceRepository;
 
     @Transactional
     public ClubResponse createClub(CreateClubRequest req) {
@@ -65,8 +67,11 @@ public class ClubService {
         Club club = clubRepository.findById(clubId)
                 .orElseThrow(() -> new ResourceNotFoundException("Club not found: " + clubId));
         if (currentUser.getRole() == Role.COORDINATOR
-                && !club.getCoordinator().getId().equals(currentUser.getId()))
+                && (club.getCoordinator() == null || !club.getCoordinator().getId().equals(currentUser.getId())))
             throw new IllegalArgumentException("You are not the coordinator of this club.");
+        if (req.getName()        != null) club.setName(req.getName());
+        if (req.getDepartment()  != null) club.setDepartment(req.getDepartment());
+        if (req.getFoundedYear() != null) club.setFoundedYear(req.getFoundedYear());
         if (req.getDescription() != null) club.setDescription(req.getDescription());
         if (req.getVision()      != null) club.setVision(req.getVision());
         if (req.getMission()     != null) club.setMission(req.getMission());
@@ -75,8 +80,13 @@ public class ClubService {
 
     @Transactional
     public void deleteClub(Long id) {
-        clubRepository.delete(clubRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Club not found: " + id)));
+        Club club = clubRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Club not found: " + id));
+        
+        // Manual cleanup of attendance for all events in this club
+        club.getEvents().forEach(attendanceRepository::deleteByEvent);
+        
+        clubRepository.delete(club);
     }
 
     @Transactional
@@ -101,9 +111,9 @@ public class ClubService {
                 .id(club.getId()).name(club.getName()).description(club.getDescription())
                 .vision(club.getVision()).mission(club.getMission()).department(club.getDepartment())
                 .foundedYear(club.getFoundedYear()).logoImage(club.getLogoImage())
-                .coordinatorName(club.getCoordinator().getName())
-                .coordinatorEmail(club.getCoordinator().getEmail())
-                .coordinatorId(club.getCoordinator().getId())
+                .coordinatorName(club.getCoordinator() != null ? club.getCoordinator().getName() : "(Unassigned)")
+                .coordinatorEmail(club.getCoordinator() != null ? club.getCoordinator().getEmail() : "")
+                .coordinatorId(club.getCoordinator() != null ? club.getCoordinator().getId() : null)
                 .memberCount(club.getMembers().size()).eventCount(club.getEvents().size())
                 .isMember(isMember).joinRequestStatus(joinStatus).build();
     }

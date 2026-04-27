@@ -123,7 +123,7 @@ function renderAdminClubs(clubs) {
                     <div class="admin-club-logo">${logo}</div>
                     <div>
                         <div class="admin-club-name">${c.name}</div>
-                        <div class="admin-club-dept">${c.department || 'General'}</div>
+                        <div class="admin-club-dept">${c.department === 'ALL' ? 'All Departments' : (c.department || 'General')}</div>
                         <div class="admin-club-coord">👤 ${c.coordinatorName}</div>
                     </div>
                 </div>
@@ -147,6 +147,17 @@ function filterAdminClubs() {
         (!dept || c.department === dept)
     );
     renderAdminClubs(filtered);
+}
+
+async function deleteClub(id, name) {
+    if (!confirm(`Are you absolutely sure you want to delete "${name}"? This will remove all events and data associated with this club.`)) return;
+    try {
+        await api.delete(`/clubs/${id}`);
+        showToast(`Club "${name}" deleted successfully.`, 'success');
+        showAdminSection('clubs');
+    } catch(err) {
+        showToast(err.error || 'Failed to delete club.', 'error');
+    }
 }
 
 // ── Club Detail ────────────────────────────────────────────────────────────
@@ -178,7 +189,7 @@ async function openAdminClubDetail(clubId) {
                     <h2>${club.name}</h2>
                     <p>${club.description || ''}</p>
                     <div class="club-detail-badges">
-                        ${club.department ? `<span class="club-badge">🏫 ${club.department}</span>` : ''}
+                        ${club.department ? `<span class="club-badge">🏫 ${club.department === 'ALL' ? 'All Departments' : club.department}</span>` : ''}
                         ${club.foundedYear ? `<span class="club-badge">📅 Est. ${club.foundedYear}</span>` : ''}
                         <span class="club-badge">👥 ${club.memberCount} members</span>
                         <span class="club-badge">🎉 ${club.eventCount} events</span>
@@ -193,6 +204,7 @@ async function openAdminClubDetail(clubId) {
                     <div style="display:flex;gap:0.5rem;margin-top:0.25rem;">
                         <button class="btn btn-primary btn-sm" onclick="openEditClubModal(${club.id})">✏️ Edit</button>
                         <button class="btn btn-gold btn-sm" onclick="openChangeCoordinator(${club.id})">🔄 Change</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteClub(${club.id}, '${club.name.replace(/'/g, "\\'")}')">🗑 Delete</button>
                     </div>
                 </div>
             </div>
@@ -304,6 +316,11 @@ async function openAdminEventDetail(eventId, clubId) {
                     <div class="mindmap-node"><div class="mindmap-node-label">👥 Registered</div><div class="mindmap-node-value">${ev.attendeeCount} people</div></div>
                     <div class="mindmap-node"><div class="mindmap-node-label">🔒 Access</div><div class="mindmap-node-value">${ev.membersOnly ? 'Members Only' : 'Open to All'}</div></div>
                     ${ev.description ? `<div class="mindmap-node"><div class="mindmap-node-label">📝 About</div><div class="mindmap-node-value">${ev.description}</div></div>` : ''}
+                    ${ev.winners ? `<div class="mindmap-node" style="border-left-color:var(--nec-gold);"><div class="mindmap-node-label">🏆 Winners</div><div class="mindmap-node-value">
+                        <ul style="margin:0;padding-left:1.25rem;">
+                            ${ev.winners.split(',').map(w => `<li>${w.trim()}</li>`).join('')}
+                        </ul>
+                    </div></div>` : ''}
                 </div>
             </div>
 
@@ -363,10 +380,12 @@ function renderUsers(users) {
             <td>${u.department || '—'}</td>
             <td>${u.year || '—'}</td>
             <td>
-                ${u.role !== 'ADMIN' ? `
+                ${u.role === 'ADMIN'
+                    ? `<button class="btn btn-danger btn-sm" onclick="forceDeleteAdmin(${u.id},'${u.name}')" title="Requires admin secret key">🔐 Force Delete</button>`
+                    : `
                     ${u.role === 'STUDENT' ? `<button class="btn btn-ghost btn-sm" onclick="promoteUser(${u.id},'${u.name}')">Promote</button>` : ''}
                     <button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id},'${u.name}')">🗑</button>
-                ` : '—'}
+                `}
             </td>
         </tr>`).join('');
 }
@@ -389,6 +408,29 @@ async function deleteUser(id, uname) {
         loadUsers();
     } catch(err) {
         showToast(err.error || 'Failed.', 'error');
+    }
+}
+
+async function forceDeleteAdmin(id, uname) {
+    if (!confirm(`⚠️ You are about to delete the ADMIN account "${uname}".\n\nThis requires the admin secret key. Proceed?`)) return;
+    const secret = prompt(`Enter the Admin Secret Key to confirm deletion of "${uname}":`);
+    if (!secret) { showToast('Cancelled.', 'error'); return; }
+    try {
+        const res = await fetch(`/api/admin/users/${id}/force`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                'X-Admin-Secret': secret
+            }
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({ error: res.statusText }));
+            throw err;
+        }
+        showToast(`Admin "${uname}" has been removed.`, 'success');
+        loadUsers();
+    } catch(err) {
+        showToast(err.error || 'Failed. Check your secret key.', 'error');
     }
 }
 
@@ -435,9 +477,51 @@ async function submitCreateClub() {
         });
         closeModal('modal-create-club');
         showToast('Club created!', 'success');
+        document.getElementById('cc-name').value = '';
+        document.getElementById('cc-dept').value = 'General';
+        document.getElementById('cc-year').value = '';
+        document.getElementById('cc-desc').value = '';
+        document.getElementById('cc-vision').value = '';
+        document.getElementById('cc-mission').value = '';
         loadAdminClubs();
     } catch(err) {
         showToast(err.error || err.message || 'Failed to create club.', 'error');
+    }
+}
+
+async function openEditClubModal(clubId) {
+    currentClubId = clubId;
+    try {
+        const club = await api.get(`/admin/clubs/${clubId}`);
+        document.getElementById('ec-name').value = club.name;
+        document.getElementById('ec-dept').value = club.department || 'General';
+        document.getElementById('ec-year').value = club.foundedYear || '';
+        document.getElementById('ec-desc').value = club.description || '';
+        document.getElementById('ec-vision').value = club.vision || '';
+        document.getElementById('ec-mission').value = club.mission || '';
+        openModal('modal-edit-club');
+    } catch(e) {
+        showToast('Failed to load club data.', 'error');
+    }
+}
+
+async function submitEditClub() {
+    const name = document.getElementById('ec-name').value.trim();
+    if (!name) { showToast('Club name is required.', 'error'); return; }
+    try {
+        await api.put(`/clubs/${currentClubId}`, {
+            name,
+            department:  document.getElementById('ec-dept').value,
+            foundedYear: parseInt(document.getElementById('ec-year').value) || null,
+            description: document.getElementById('ec-desc').value,
+            vision:      document.getElementById('ec-vision').value,
+            mission:     document.getElementById('ec-mission').value
+        });
+        closeModal('modal-edit-club');
+        showToast('Club updated!', 'success');
+        openAdminClubDetail(currentClubId);
+    } catch(err) {
+        showToast(err.error || 'Failed to update club.', 'error');
     }
 }
 
@@ -456,9 +540,48 @@ async function submitCreateCoordinator() {
         });
         closeModal('modal-create-coordinator');
         showToast('Coordinator account created!', 'success');
+        document.getElementById('nc-name').value = '';
+        document.getElementById('nc-email').value = '';
+        document.getElementById('nc-password').value = '';
+        document.getElementById('nc-dept').value = 'CSE';
         loadUsers();
     } catch(err) {
         showToast(err.error || 'Failed.', 'error');
+    }
+}
+
+// ── Create Admin ──────────────────────────────────────────────────────────
+async function submitCreateAdmin() {
+    const name     = document.getElementById('na-name').value.trim();
+    const email    = document.getElementById('na-email').value.trim();
+    const password = document.getElementById('na-password').value;
+    const secret   = document.getElementById('na-secret').value;
+    if (!name || !email || !password || !secret) {
+        showToast('All fields including the secret key are required.', 'error'); return;
+    }
+    try {
+        const res = await fetch('/api/admin/users/admin', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                'X-Admin-Secret': secret
+            },
+            body: JSON.stringify({ name, email, password })
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({ error: res.statusText }));
+            throw err;
+        }
+        closeModal('modal-create-admin');
+        showToast('Admin account created successfully!', 'success');
+        document.getElementById('na-name').value = '';
+        document.getElementById('na-email').value = '';
+        document.getElementById('na-password').value = '';
+        document.getElementById('na-secret').value = '';
+        loadUsers();
+    } catch(err) {
+        showToast(err.error || 'Failed to create admin.', 'error');
     }
 }
 

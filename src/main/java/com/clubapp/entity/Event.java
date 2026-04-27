@@ -36,8 +36,11 @@ public class Event {
     @Column(nullable = false)
     private boolean membersOnly;
 
-    @Column
+    @Column(name = "max_attendees")
     private Integer maxAttendees;
+
+    @Column(columnDefinition = "TEXT")
+    private String winners;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "club_id", nullable = false)

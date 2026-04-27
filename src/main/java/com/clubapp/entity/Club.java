@@ -39,7 +39,7 @@ public class Club {
     private String logoImage;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "coordinator_id", nullable = false)
+    @JoinColumn(name = "coordinator_id", nullable = true)
     private User coordinator;
 
     @ManyToMany(fetch = FetchType.LAZY)
