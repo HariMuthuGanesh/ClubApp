@@ -44,6 +44,7 @@ public class AttendanceService {
                 .orElse(Attendance.builder().event(event).user(target).build());
         
         att.setStatus(req.getStatus());
+        att.setUtterance(req.getUtterance());
         return mapToResponse(attendanceRepository.save(att));
     }
 
@@ -61,6 +62,7 @@ public class AttendanceService {
                 .id(a.getId())
                 .userId(a.getUser().getId()).userName(a.getUser().getName())
                 .email(a.getUser().getEmail()).status(a.getStatus())
+                .utterance(a.getUtterance())
                 .eventId(a.getEvent().getId()).eventName(a.getEvent().getName()).build();
     }
 }

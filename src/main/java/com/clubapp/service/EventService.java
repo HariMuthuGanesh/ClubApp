@@ -8,6 +8,7 @@ import com.clubapp.exception.ResourceNotFoundException;
 import com.clubapp.repository.AttendanceRepository;
 import com.clubapp.repository.ClubRepository;
 import com.clubapp.repository.EventRepository;
+import com.clubapp.repository.NewsRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +24,8 @@ public class EventService {
     private final EventRepository eventRepository;
     private final ClubRepository clubRepository;
     private final AttendanceRepository attendanceRepository;
+    private final NewsRepository newsRepository;
+    private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
 
     @Transactional
     public EventResponse createEvent(Long clubId, CreateEventRequest req, User currentUser) {
@@ -35,7 +38,9 @@ public class EventService {
                 .venue(req.getVenue()).date(req.getDate()).time(req.getTime())
                 .membersOnly(req.isMembersOnly()).maxAttendees(req.getMaxAttendees())
                 .club(club).build();
-        return mapToResponse(eventRepository.save(event), currentUser);
+        EventResponse response = mapToResponse(eventRepository.save(event), currentUser);
+        messagingTemplate.convertAndSend("/topic/events", response);
+        return response;
     }
 
     public List<EventResponse> getEventsByClub(Long clubId, User currentUser) {
@@ -55,8 +60,25 @@ public class EventService {
         event.setVenue(req.getVenue()); event.setDate(req.getDate());
         event.setTime(req.getTime()); event.setMembersOnly(req.isMembersOnly());
         event.setMaxAttendees(req.getMaxAttendees());
+        
+        String oldWinners = event.getWinners();
         event.setWinners(req.getWinners());
-        return mapToResponse(eventRepository.save(event), currentUser);
+        
+        Event saved = eventRepository.save(event);
+        
+        // Post news if winners were added/changed
+        if (req.getWinners() != null && !req.getWinners().isEmpty() && !req.getWinners().equals(oldWinners)) {
+            News news = News.builder()
+                    .title("🏆 Winners Announced: " + saved.getName())
+                    .content("The results for the event '" + saved.getName() + "' are out! \nWinners: " + req.getWinners())
+                    .club(saved.getClub())
+                    .build();
+            newsRepository.save(news);
+        }
+        
+        EventResponse response = mapToResponse(saved, currentUser);
+        messagingTemplate.convertAndSend("/topic/events", response);
+        return response;
     }
 
     @Transactional
@@ -105,10 +127,17 @@ public class EventService {
         eventRepository.save(event);
     }
 
+    public List<EventResponse> getMyParticipatedEvents(User currentUser) {
+        return eventRepository.findByAttendeesContaining(currentUser).stream()
+                .map(e -> mapToResponse(e, currentUser))
+                .collect(Collectors.toList());
+    }
+
     public List<EventResponse> getOngoingEvents(User currentUser) {
         String today = LocalDate.now().toString();
+        String sevenDaysAgo = LocalDate.now().minusDays(7).toString();
         return eventRepository.findAll().stream()
-                .filter(e -> e.getDate() != null && e.getDate().compareTo(today) >= 0)
+                .filter(e -> e.getDate() != null && e.getDate().compareTo(sevenDaysAgo) >= 0)
                 .map(e -> mapToResponse(e, currentUser)).collect(Collectors.toList());
     }
 

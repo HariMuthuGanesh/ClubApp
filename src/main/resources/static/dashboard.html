@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>NEC ClubApp — Dashboard</title>
+    <title>ClubApp — Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com"/>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="/css/style.css"/>
@@ -109,6 +109,14 @@
             <div class="section-header"><h2>📨 My Join Requests</h2></div>
             <div id="my-requests-list"></div>
         </div>
+    </section>
+
+    <!-- ── MY PARTICIPATION SECTION (Student) ───── -->
+    <section id="section-my-participation" class="section">
+        <div class="page-header">
+            <h1>🤝 My Participations</h1>
+        </div>
+        <div class="poster-grid" id="my-participation-grid"></div>
     </section>
 
     <!-- ── CLUB DETAIL VIEW ────────────────────── -->
@@ -235,6 +243,23 @@
     </div>
 </div>
 
+<!-- News Detail Modal -->
+<div id="modal-news-detail" class="modal-overlay hidden">
+    <div class="modal">
+        <h3 id="news-detail-title">Announcement</h3>
+        <div style="margin:1rem 0; line-height:1.6;">
+            <p id="news-detail-content" style="white-space:pre-wrap; color:var(--text-main);"></p>
+            <div style="margin-top:1rem; font-size:0.85rem; color:var(--text-muted);">
+                <span id="news-detail-club"></span> · <span id="news-detail-date"></span>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeModal('modal-news-detail')">Close</button>
+            <button class="btn btn-primary" id="news-view-club-btn">🏢 View Club</button>
+        </div>
+    </div>
+</div>
+
 <!-- Attendance Modal -->
 <div id="modal-attendance" class="modal-overlay hidden">
     <div class="modal" style="max-width:600px;">
@@ -339,6 +364,8 @@
 <!-- Toast -->
 <div id="toast" class="toast hidden"></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
 <script src="/js/api.js"></script>
 <script src="/js/dashboard.js"></script>
 </body>

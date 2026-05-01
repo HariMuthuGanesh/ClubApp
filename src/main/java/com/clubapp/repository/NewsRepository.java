@@ -15,7 +15,7 @@ public interface NewsRepository extends JpaRepository<News, Long> {
     
     List<News> findByClub(Club club);
 
-    @Query("SELECT n FROM News n WHERE n.club.department = 'ALL' OR :user MEMBER OF n.club.members ORDER BY n.postedAt DESC")
+    @Query("SELECT n FROM News n WHERE n.club.department = 'ALL' OR :user MEMBER OF n.club.members OR n.club.coordinator = :user ORDER BY n.postedAt DESC")
     List<News> findNewsForUser(@Param("user") User user);
     
     void deleteByClub(Club club);

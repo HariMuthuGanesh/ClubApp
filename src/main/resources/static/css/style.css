@@ -89,6 +89,9 @@ img{max-width:100%}
 .form-group label{font-size:.85rem;font-weight:500;color:var(--text-secondary)}
 .form-group input,.form-group select,.form-group textarea{padding:.65rem .9rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-surface);color:var(--text-primary);transition:var(--transition);outline:none}
 .form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--nec-blue);box-shadow:0 0 0 3px rgba(26,58,143,.1)}
+.form-input-sm { padding: 4px 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.8rem; width: 100%; outline: none; }
+.form-input-sm:focus { border-color: var(--nec-blue); }
+.truncate-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .auth-note{font-size:.78rem;color:var(--text-muted);text-align:center;margin-top:.5rem}
 
 /* ── BUTTONS ── */
@@ -174,6 +177,7 @@ img{max-width:100%}
 .poster-event-name{font-size:1rem;font-weight:700;color:#fff;line-height:1.3}
 .poster-club-name{font-size:.75rem;color:var(--nec-gold);margin-top:4px}
 .poster-body{padding:.85rem 1rem}
+.poster-title{font-size:0.95rem;font-weight:700;color:var(--text-primary);margin-bottom:0.5rem;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;line-height:1.2}
 .poster-meta{font-size:.78rem;color:var(--text-muted);display:flex;flex-direction:column;gap:3px}
 .poster-footer{padding:.65rem 1rem;background:var(--bg-base);display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--border);flex-wrap:wrap;gap:.4rem}
 .attendee-count{font-size:.78rem;color:var(--text-muted)}

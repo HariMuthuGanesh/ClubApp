@@ -43,10 +43,16 @@ public class EventController {
     public ResponseEntity<List<EventResponse>> getOngoingEventsByClub(@PathVariable Long clubId,
                                                                       @AuthenticationPrincipal User currentUser) {
         String today = java.time.LocalDate.now().toString();
+        String fiveDaysAgo = java.time.LocalDate.now().minusDays(5).toString();
         List<EventResponse> ongoing = eventService.getEventsByClub(clubId, currentUser).stream()
-                .filter(e -> e.getDate() != null && e.getDate().compareTo(today) >= 0)
+                .filter(e -> e.getDate() != null && e.getDate().compareTo(fiveDaysAgo) >= 0)
                 .collect(java.util.stream.Collectors.toList());
         return ResponseEntity.ok(ongoing);
+    }
+
+    @GetMapping("/api/events/my-participation")
+    public ResponseEntity<List<EventResponse>> getMyParticipatedEvents(@AuthenticationPrincipal User currentUser) {
+        return ResponseEntity.ok(eventService.getMyParticipatedEvents(currentUser));
     }
 
     @GetMapping("/api/events/ongoing")

@@ -24,6 +24,7 @@ let activeEventId    = null;
 document.addEventListener('DOMContentLoaded', () => {
     buildSidebar();
     loadOverview();
+    initWebSocket();
 });
 
 // ── Sidebar ────────────────────────────────────────────────────────────────
@@ -46,6 +47,7 @@ function buildSidebar() {
             { icon: '🏠', label: 'Overview',  section: 'section-overview'  },
             { icon: '🏛', label: 'All Clubs', section: 'section-all-clubs' },
             { icon: '⭐', label: 'My Clubs',  section: 'section-my-clubs'  },
+            { icon: '🤝', label: 'My Participations', section: 'section-my-participation' },
           ];
 
     nav.innerHTML = items.map(i => `
@@ -73,6 +75,7 @@ function showSection(id) {
     if (id === 'section-overview')   loadOverview();
     if (id === 'section-all-clubs')  loadAllClubs();
     if (id === 'section-my-clubs')   loadMyClubs();
+    if (id === 'section-my-participation') loadMyParticipation();
     if (id === 'section-my-club')    loadMyClub();
 }
 
@@ -91,16 +94,27 @@ async function loadOverview() {
             const club = await api.get('/clubs/my-club');
             if (club && club.id) {
                 myClubData = club;
-                events = await api.get(`/clubs/${club.id}/events/ongoing`);
+                events = await api.get('/events/ongoing'); 
                 stats = [
                     { icon: '👥', value: club.memberCount, label: 'Club Members' },
                     { icon: '🎉', value: club.eventCount, label: 'Total Events' },
                     { icon: '🎯', value: events.length, label: 'Ongoing Events' }
                 ];
+            } else {
+                events = await api.get('/events/ongoing');
+                stats = [
+                    { icon: '🎉', value: events.length, label: 'Ongoing Events' },
+                    { icon: '🏛', value: allClubs.length || '—', label: 'Total Clubs' }
+                ];
             }
             loadCoordinatorPending();
             loadNewsFeed();
         } else {
+            if (allClubs.length === 0) {
+                try {
+                    allClubs = await api.get('/clubs');
+                } catch(e) { console.error("Failed to pre-fetch clubs", e); }
+            }
             events = await api.get('/events/ongoing');
             const myClubs = await api.get('/clubs/mine');
             stats = [
@@ -151,6 +165,7 @@ function posterCardHTML(ev, showRegister = false) {
         <div class="poster-card" onclick="openEventDetail(${ev.id}, ${ev.clubId})">
             <div class="poster-image">${posterBg}</div>
             <div class="poster-body">
+                <div class="poster-title">${ev.name}</div>
                 <div class="poster-meta">
                     <span>📅 ${ev.date || '—'} ${ev.time ? '· ' + ev.time : ''}</span>
                     <span>📍 ${ev.venue || '—'}</span>
@@ -172,7 +187,14 @@ async function registerEvent(eventId, e) {
     try {
         await api.post(`/events/${eventId}/register`, {});
         showToast('Successfully registered!', 'success');
+        
+        // Refresh views
         loadOverview();
+        if (getCurrentSection() === 'section-club-detail') {
+            openClubDetail(currentClubId);
+        } else if (getCurrentSection() === 'section-event-detail') {
+            openEventDetail(eventId, currentClubId || 0); // Refresh current event detail
+        }
     } catch(err) {
         showToast(err.error || err.message || 'Could not register.', 'error');
     }
@@ -302,6 +324,23 @@ function renderMyRequests(requests) {
     `).join('');
 }
 
+// ── My Participation ───────────────────────────────────────────────────────
+async function loadMyParticipation() {
+    const grid = document.getElementById('my-participation-grid');
+    grid.innerHTML = `<div class="loading-spinner">Loading participated events...</div>`;
+    try {
+        const events = await api.get('/events/my-participation');
+        if (!events.length) {
+            grid.innerHTML = `<div class="empty-state"><div class="empty-icon">🤝</div><p>You haven't participated in any events yet.</p></div>`;
+            return;
+        }
+        grid.innerHTML = events.map(ev => posterCardHTML(ev, false)).join('');
+    } catch(e) {
+        console.error(e);
+        grid.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>Failed to load participated events.</p></div>`;
+    }
+}
+
 // ── Club Detail ────────────────────────────────────────────────────────────
 async function openClubDetail(clubId) {
     prevSection      = getCurrentSection();
@@ -418,9 +457,9 @@ async function openEventDetail(eventId, clubId) {
 
         const todayStr = new Date().toISOString().split('T')[0];
         const isPast   = ev.date && ev.date < todayStr;
-        const isRegistered = ev.isRegistered;
-        const isFull       = ev.isFull;
-        const canRegister  = role === 'STUDENT' && !ev.isRegistered && !ev.isFull && !isPast;
+        const isRegistered = ev.registered;
+        const isFull       = ev.full;
+        const canRegister  = role === 'STUDENT' && !ev.registered && !ev.full && !isPast;
 
         const posterHTML = ev.posterImage
             ? `<img src="/uploads/${ev.posterImage}" alt="${ev.name}" style="width:100%;display:block;"/>`
@@ -663,7 +702,7 @@ function coordinatorEventCard(ev, today) {
             <div class="poster-footer" style="flex-wrap:wrap;gap:0.5rem;padding:0.5rem 1rem 1rem;">
                 ${isOngoing ? `<button class="btn btn-success btn-sm" onclick="openAttendance(${ev.id})">Attendance</button>` : ''}
                 <button class="btn btn-primary btn-sm" onclick="viewAttendees(${ev.id})">👥 View</button>
-                <button class="btn btn-info btn-sm" onclick="downloadAttendance(${ev.id})" style="background:var(--nec-gold);color:#000;">📥 Excel</button>
+                <button class="btn btn-info btn-sm" onclick="downloadAttendance(${ev.id})" style="background:var(--nec-gold);color:#000;">📥 Utterance Sheet</button>
                 <button class="btn btn-ghost btn-sm" onclick="openEditEventModal(${ev.id})">✏️ Edit</button>
                 <button class="btn btn-danger btn-sm" onclick="deleteEvent(${ev.id})">🗑</button>
             </div>
@@ -887,7 +926,7 @@ async function openAttendance(eventId) {
         document.getElementById('attendance-list').innerHTML = `
             <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1rem;">Event: <strong>${ev.name}</strong></p>
             <table class="data-table">
-                <thead><tr><th>Name</th><th>Dept</th><th>Present</th></tr></thead>
+                <thead><tr><th>Name</th><th>Dept</th><th>Present</th><th>Utterance</th></tr></thead>
                 <tbody>
                     ${members.map(m => `
                         <tr>
@@ -895,7 +934,11 @@ async function openAttendance(eventId) {
                             <td>${m.department || '—'}</td>
                             <td>
                                 <input type="checkbox" id="att-${m.id}"
-                                    onchange="markAttendance(${eventId},${m.id},this.checked)"/>
+                                    onchange="markAttendance(${eventId},${m.id})"/>
+                            </td>
+                            <td>
+                                <input type="text" id="utt-${m.id}" class="form-input-sm" placeholder="Record utterance..."
+                                    onchange="markAttendance(${eventId},${m.id})"/>
                             </td>
                         </tr>`).join('')}
                 </tbody>
@@ -905,15 +948,50 @@ async function openAttendance(eventId) {
     }
 }
 
-async function markAttendance(eventId, userId, present) {
+async function markAttendance(eventId, userId) {
+    const present = document.getElementById(`att-${userId}`).checked;
+    const utterance = document.getElementById(`utt-${userId}`).value;
     try {
         await api.post(`/events/${eventId}/attendance`, {
             userId,
-            status: present ? 'PRESENT' : 'ABSENT'
+            status: present ? 'PRESENT' : 'ABSENT',
+            utterance: utterance
         });
     } catch(err) {
         showToast(err.error || 'Failed.', 'error');
     }
+}
+
+// ── Real-time (WebSockets) ─────────────────────────────────────────────────
+function initWebSocket() {
+    const socket = new SockJS('/ws-clubapp');
+    const stompClient = Stomp.over(socket);
+    stompClient.debug = null; // Disable debug logging
+
+    stompClient.connect({}, (frame) => {
+        console.log('Connected to WebSocket');
+        
+        stompClient.subscribe('/topic/news', (msg) => {
+            const news = JSON.parse(msg.body);
+            showToast(`📢 New announcement: ${news.title}`, 'info');
+            loadNewsFeed();
+            if (getCurrentSection() === 'section-my-club') {
+                loadMyClubNews(myClubData?.id);
+            }
+        });
+
+        stompClient.subscribe('/topic/events', (msg) => {
+            const event = JSON.parse(msg.body);
+            showToast(`🎉 Event updated: ${event.name}`, 'info');
+            loadOverview();
+            if (getCurrentSection() === 'section-club-detail' && currentClubId === event.clubId) {
+                openClubDetail(event.clubId);
+            }
+        });
+    }, (error) => {
+        console.error('WebSocket Error:', error);
+        setTimeout(initWebSocket, 5000); // Retry after 5s
+    });
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -1062,16 +1140,31 @@ async function loadNewsFeed() {
             return;
         }
         feed.innerHTML = news.map(n => `
-            <div class="news-item ${n.clubDept === 'ALL' ? 'my-club' : ''}" onclick="openClubDetail(${n.clubId})" style="cursor:pointer;">
+            <div class="news-item ${n.clubDept === 'ALL' ? 'my-club' : ''}" onclick="openNewsDetail(${JSON.stringify(n).replace(/"/g, '&quot;')})" style="cursor:pointer;">
                 <div class="news-content">
                     <h4>${n.title}</h4>
-                    <p>${n.content}</p>
+                    <p class="truncate-2">${n.content}</p>
                     <div style="font-size:0.7rem;color:var(--nec-blue);font-weight:600;margin-top:4px;">${n.clubName}</div>
                 </div>
                 <div class="news-date">${new Date(n.postedAt).toLocaleDateString()}</div>
             </div>
         `).join('');
     } catch(e) { console.error(e); }
+}
+
+function openNewsDetail(news) {
+    document.getElementById('news-detail-title').textContent = news.title;
+    document.getElementById('news-detail-content').textContent = news.content;
+    document.getElementById('news-detail-club').textContent = news.clubName;
+    document.getElementById('news-detail-date').textContent = new Date(news.postedAt).toLocaleDateString();
+    
+    const btn = document.getElementById('news-view-club-btn');
+    btn.onclick = () => {
+        closeModal('modal-news-detail');
+        openClubDetail(news.clubId);
+    };
+    
+    document.getElementById('modal-news-detail').classList.remove('hidden');
 }
 
 async function loadMyClubNews(clubId) {

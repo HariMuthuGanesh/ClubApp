@@ -21,6 +21,7 @@ public class NewsService {
 
     private final NewsRepository newsRepository;
     private final ClubRepository clubRepository;
+    private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
 
     @Transactional
     public NewsResponse postNews(Long clubId, String title, String content, User currentUser) {
@@ -38,7 +39,9 @@ public class NewsService {
                 .club(club)
                 .build();
         
-        return mapToResponse(newsRepository.save(news));
+        NewsResponse response = mapToResponse(newsRepository.save(news));
+        messagingTemplate.convertAndSend("/topic/news", response);
+        return response;
     }
 
     public List<NewsResponse> getNewsForUser(User user) {

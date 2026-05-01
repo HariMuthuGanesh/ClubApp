@@ -18,4 +18,5 @@ public class AttendanceResponse {
     private Long eventId;
     private String eventName;
     private AttendanceStatus status;
+    private String utterance;
 }

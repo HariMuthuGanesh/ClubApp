@@ -12,4 +12,6 @@ public class AttendanceMarkRequest {
 
     @NotNull(message = "Status is required (PRESENT or ABSENT)")
     private AttendanceStatus status;
+
+    private String utterance;
 }
