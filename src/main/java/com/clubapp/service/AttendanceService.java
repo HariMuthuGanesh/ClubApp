@@ -3,7 +3,9 @@ package com.clubapp.service;
 import com.clubapp.dto.request.AttendanceMarkRequest;
 import com.clubapp.dto.response.AttendanceResponse;
 import com.clubapp.entity.*;
+import com.clubapp.exception.BadRequestException;
 import com.clubapp.exception.ResourceNotFoundException;
+import com.clubapp.exception.UnauthorizedException;
 import com.clubapp.repository.AttendanceRepository;
 import com.clubapp.repository.EventRepository;
 import com.clubapp.repository.UserRepository;
@@ -28,13 +30,13 @@ public class AttendanceService {
         
         if (currentUser.getRole() == Role.COORDINATOR
                 && (event.getClub().getCoordinator() == null || !event.getClub().getCoordinator().getId().equals(currentUser.getId()))) {
-            throw new IllegalArgumentException("You can only mark attendance for your own club's events.");
+            throw new UnauthorizedException("You can only mark attendance for your own club's events.");
         }
 
         // Attendance can only be marked on the event day
         String today = java.time.LocalDate.now().toString(); // YYYY-MM-DD
         if (!event.getDate().equals(today)) {
-            throw new IllegalArgumentException("Attendance can only be marked on the event day: " + event.getDate());
+            throw new BadRequestException("Attendance can only be marked on the event day: " + event.getDate());
         }
 
         User target = userRepository.findById(req.getUserId())
@@ -53,7 +55,7 @@ public class AttendanceService {
                 .orElseThrow(() -> new ResourceNotFoundException("Event not found: " + eventId));
         if (currentUser.getRole() == Role.COORDINATOR
                 && (event.getClub().getCoordinator() == null || !event.getClub().getCoordinator().getId().equals(currentUser.getId())))
-            throw new IllegalArgumentException("Access denied.");
+            throw new UnauthorizedException("Access denied.");
         return attendanceRepository.findByEvent(event).stream().map(this::mapToResponse).collect(Collectors.toList());
     }
 

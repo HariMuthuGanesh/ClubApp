@@ -9,4 +9,5 @@ public interface ClubJoinRequestRepository extends JpaRepository<ClubJoinRequest
     List<ClubJoinRequest> findByClub(Club club);
     Optional<ClubJoinRequest> findByUserAndClub(User user, Club club);
     boolean existsByUserAndClubAndStatus(User user, Club club, JoinRequestStatus status);
+    void deleteByUser(User user);
 }

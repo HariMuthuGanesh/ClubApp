@@ -4,7 +4,10 @@ import com.clubapp.dto.request.CreateEventRequest;
 import com.clubapp.dto.response.EventResponse;
 import com.clubapp.dto.response.UserResponse;
 import com.clubapp.entity.*;
+import com.clubapp.exception.BadRequestException;
+import com.clubapp.exception.ConflictException;
 import com.clubapp.exception.ResourceNotFoundException;
+import com.clubapp.exception.UnauthorizedException;
 import com.clubapp.repository.AttendanceRepository;
 import com.clubapp.repository.ClubRepository;
 import com.clubapp.repository.EventRepository;
@@ -33,7 +36,7 @@ public class EventService {
                 .orElseThrow(() -> new ResourceNotFoundException("Club not found: " + clubId));
         if (currentUser.getRole() == Role.COORDINATOR
                 && (club.getCoordinator() == null || !club.getCoordinator().getId().equals(currentUser.getId())))
-            throw new IllegalArgumentException("You can only create events for your own club.");
+            throw new UnauthorizedException("You can only create events for your own club.");
         Event event = Event.builder().name(req.getName()).description(req.getDescription())
                 .venue(req.getVenue()).date(req.getDate()).time(req.getTime())
                 .membersOnly(req.isMembersOnly()).maxAttendees(req.getMaxAttendees())
@@ -55,7 +58,7 @@ public class EventService {
                 .orElseThrow(() -> new ResourceNotFoundException("Event not found: " + eventId));
         if (currentUser.getRole() == Role.COORDINATOR
                 && (event.getClub().getCoordinator() == null || !event.getClub().getCoordinator().getId().equals(currentUser.getId())))
-            throw new IllegalArgumentException("You can only update your own club's events.");
+            throw new UnauthorizedException("You can only update your own club's events.");
         event.setName(req.getName()); event.setDescription(req.getDescription());
         event.setVenue(req.getVenue()); event.setDate(req.getDate());
         event.setTime(req.getTime()); event.setMembersOnly(req.isMembersOnly());
@@ -87,7 +90,7 @@ public class EventService {
                 .orElseThrow(() -> new ResourceNotFoundException("Event not found: " + eventId));
         if (currentUser.getRole() == Role.COORDINATOR
                 && (event.getClub().getCoordinator() == null || !event.getClub().getCoordinator().getId().equals(currentUser.getId())))
-            throw new IllegalArgumentException("You can only delete your own club's events.");
+            throw new UnauthorizedException("You can only delete your own club's events.");
         
         attendanceRepository.deleteByEvent(event);
         eventRepository.delete(event);
@@ -96,24 +99,24 @@ public class EventService {
     @Transactional
     public EventResponse registerForEvent(Long eventId, User currentUser) {
         if (currentUser.getRole() == Role.ADMIN)
-            throw new IllegalArgumentException("Admin cannot register for events.");
+            throw new BadRequestException("Admin cannot register for events.");
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new ResourceNotFoundException("Event not found: " + eventId));
         if (event.isMembersOnly()) {
             boolean isMember = event.getClub().getMembers().stream()
                     .anyMatch(m -> m.getId().equals(currentUser.getId()));
             if (!isMember)
-                throw new IllegalArgumentException("This event is for club members only.");
+                throw new UnauthorizedException("This event is for club members only.");
         }
         if (event.getAttendees().stream().anyMatch(a -> a.getId().equals(currentUser.getId())))
-            throw new IllegalArgumentException("You are already registered for this event.");
+            throw new ConflictException("You are already registered for this event.");
         
         if (event.getMaxAttendees() != null && event.getAttendees().size() >= event.getMaxAttendees())
-            throw new IllegalArgumentException("This event is full.");
+            throw new BadRequestException("This event is full.");
         
         String today = LocalDate.now().toString();
         if (event.getDate() != null && event.getDate().compareTo(today) < 0)
-            throw new IllegalArgumentException("Cannot register for a past event.");
+            throw new BadRequestException("Cannot register for a past event.");
 
         event.getAttendees().add(currentUser);
         return mapToResponse(eventRepository.save(event), currentUser);
@@ -166,7 +169,7 @@ public class EventService {
                 .orElseThrow(() -> new ResourceNotFoundException("Event not found: " + eventId));
         if (currentUser.getRole() == Role.COORDINATOR
                 && (event.getClub().getCoordinator() == null || !event.getClub().getCoordinator().getId().equals(currentUser.getId())))
-            throw new IllegalArgumentException("Access denied.");
+            throw new UnauthorizedException("Access denied.");
         
         return event.getAttendees().stream().map(u -> UserResponse.builder()
                 .id(u.getId()).name(u.getName()).email(u.getEmail())

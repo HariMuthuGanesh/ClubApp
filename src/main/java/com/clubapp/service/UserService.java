@@ -5,9 +5,14 @@ import com.clubapp.dto.response.UserResponse;
 import com.clubapp.entity.Club;
 import com.clubapp.entity.Role;
 import com.clubapp.entity.User;
+import com.clubapp.exception.BadRequestException;
+import com.clubapp.exception.ConflictException;
 import com.clubapp.exception.ResourceNotFoundException;
+import com.clubapp.exception.UnauthorizedException;
 import com.clubapp.repository.AttendanceRepository;
+import com.clubapp.repository.ClubJoinRequestRepository;
 import com.clubapp.repository.ClubRepository;
+import com.clubapp.repository.EventRepository;
 import com.clubapp.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,6 +31,8 @@ public class UserService {
     private final UserRepository userRepository;
     private final ClubRepository clubRepository;
     private final AttendanceRepository attendanceRepository;
+    private final ClubJoinRequestRepository joinRequestRepository;
+    private final EventRepository eventRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Value("${app.adminSecret}")
@@ -35,7 +42,7 @@ public class UserService {
     @Transactional
     public UserResponse register(RegisterRequest req) {
         if (userRepository.existsByEmail(req.getEmail()))
-            throw new IllegalArgumentException("Email already registered: " + req.getEmail());
+            throw new ConflictException("Email already registered: " + req.getEmail());
         User user = User.builder()
                 .name(req.getName())
                 .email(req.getEmail())
@@ -51,9 +58,9 @@ public class UserService {
     @Transactional
     public UserResponse registerAdmin(RegisterRequest req, String secret) {
         if (!adminSecret.equals(secret))
-            throw new IllegalArgumentException("Invalid admin secret key.");
+            throw new UnauthorizedException("Invalid admin secret key.");
         if (userRepository.existsByEmail(req.getEmail()))
-            throw new IllegalArgumentException("Email already registered.");
+            throw new ConflictException("Email already registered.");
         User user = User.builder()
                 .name(req.getName())
                 .email(req.getEmail())
@@ -67,9 +74,9 @@ public class UserService {
     @Transactional
     public UserResponse createAdmin(CreateCoordinatorRequest req, String secret) {
         if (!adminSecret.equals(secret))
-            throw new IllegalArgumentException("Invalid admin secret key.");
+            throw new UnauthorizedException("Invalid admin secret key.");
         if (userRepository.existsByEmail(req.getEmail()))
-            throw new IllegalArgumentException("Email already registered: " + req.getEmail());
+            throw new ConflictException("Email already registered: " + req.getEmail());
         User user = User.builder()
                 .name(req.getName())
                 .email(req.getEmail())
@@ -83,7 +90,7 @@ public class UserService {
     @Transactional
     public UserResponse createCoordinator(CreateCoordinatorRequest req) {
         if (userRepository.existsByEmail(req.getEmail()))
-            throw new IllegalArgumentException("Email already registered: " + req.getEmail());
+            throw new ConflictException("Email already registered: " + req.getEmail());
         User user = User.builder()
                 .name(req.getName())
                 .email(req.getEmail())
@@ -100,7 +107,7 @@ public class UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
         if (user.getRole() != Role.STUDENT)
-            throw new IllegalArgumentException("Only students can be promoted.");
+            throw new BadRequestException("Only students can be promoted.");
         user.setRole(Role.COORDINATOR);
         return mapToResponse(userRepository.save(user));
     }
@@ -121,11 +128,11 @@ public class UserService {
     @Transactional
     public void changePassword(User currentUser, ChangePasswordRequest req) {
         if (!req.getNewPassword().equals(req.getConfirmPassword()))
-            throw new IllegalArgumentException("New password and confirm password do not match.");
+            throw new BadRequestException("New password and confirm password do not match.");
         User user = userRepository.findById(currentUser.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         if (!passwordEncoder.matches(req.getCurrentPassword(), user.getPassword()))
-            throw new IllegalArgumentException("Current password is incorrect.");
+            throw new BadRequestException("Current password is incorrect.");
         user.setPassword(passwordEncoder.encode(req.getNewPassword()));
         userRepository.save(user);
     }
@@ -144,18 +151,9 @@ public class UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + id));
         if (user.getRole() == Role.ADMIN)
-            throw new IllegalArgumentException("Cannot delete an admin account via this action. Use the super-admin delete with the secret key.");
+            throw new UnauthorizedException("Cannot delete an admin account via this action. Use the super-admin delete with the secret key.");
 
-        // Remove from club member lists (avoids FK on club_members junction table)
-        List<Club> allClubs = clubRepository.findAll();
-        for (Club club : allClubs) {
-            club.getMembers().removeIf(m -> m.getId().equals(id));
-            if (club.getCoordinator() != null && club.getCoordinator().getId().equals(id)) {
-                club.setCoordinator(null);
-            }
-            clubRepository.save(club);
-        }
-        attendanceRepository.deleteByUser(user);
+        performUserCleanup(user);
         userRepository.delete(user);
     }
 
@@ -163,22 +161,41 @@ public class UserService {
     @Transactional
     public void deleteUserWithSecret(Long id, String secret, User currentUser) {
         if (!adminSecret.equals(secret))
-            throw new IllegalArgumentException("Invalid admin secret key.");
+            throw new UnauthorizedException("Invalid admin secret key.");
         User target = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + id));
         if (target.getId().equals(currentUser.getId()))
-            throw new IllegalArgumentException("You cannot delete your own account.");
+            throw new BadRequestException("You cannot delete your own account.");
 
-        List<Club> allClubs = clubRepository.findAll();
-        for (Club club : allClubs) {
-            club.getMembers().removeIf(m -> m.getId().equals(id));
-            if (club.getCoordinator() != null && club.getCoordinator().getId().equals(id)) {
+        performUserCleanup(target);
+        userRepository.delete(target);
+    }
+
+    private void performUserCleanup(User user) {
+        Long userId = user.getId();
+        
+        // 1. Remove from club member lists and nullify coordinator if applicable
+        List<com.clubapp.entity.Club> allClubs = clubRepository.findAll();
+        for (com.clubapp.entity.Club club : allClubs) {
+            club.getMembers().removeIf(m -> m.getId().equals(userId));
+            if (club.getCoordinator() != null && club.getCoordinator().getId().equals(userId)) {
                 club.setCoordinator(null);
             }
             clubRepository.save(club);
         }
-        attendanceRepository.deleteByUser(target);
-        userRepository.delete(target);
+        
+        // 2. Delete attendance records
+        attendanceRepository.deleteByUser(user);
+        
+        // 3. Delete club join requests
+        joinRequestRepository.deleteByUser(user);
+        
+        // 4. Remove from all event attendee sets
+        List<com.clubapp.entity.Event> events = eventRepository.findByAttendeesContaining(user);
+        for (com.clubapp.entity.Event event : events) {
+            event.getAttendees().removeIf(u -> u.getId().equals(userId));
+            eventRepository.save(event);
+        }
     }
 
     public UserResponse mapToResponse(User user) {

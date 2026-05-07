@@ -3,7 +3,10 @@ package com.clubapp.service;
 import com.clubapp.dto.request.CreateClubRequest;
 import com.clubapp.dto.response.ClubResponse;
 import com.clubapp.entity.*;
+import com.clubapp.exception.BadRequestException;
+import com.clubapp.exception.ConflictException;
 import com.clubapp.exception.ResourceNotFoundException;
+import com.clubapp.exception.UnauthorizedException;
 import com.clubapp.repository.AttendanceRepository;
 import com.clubapp.repository.ClubJoinRequestRepository;
 import com.clubapp.repository.ClubRepository;
@@ -28,11 +31,11 @@ public class ClubService {
     @Transactional
     public ClubResponse createClub(CreateClubRequest req) {
         if (clubRepository.existsByNameIgnoreCase(req.getName()))
-            throw new IllegalArgumentException("A club with this name already exists.");
+            throw new ConflictException("A club with this name already exists.");
         User coordinator = userRepository.findByEmail(req.getCoordinatorEmail())
                 .orElseThrow(() -> new ResourceNotFoundException("Coordinator not found: " + req.getCoordinatorEmail()));
         if (coordinator.getRole() != Role.COORDINATOR)
-            throw new IllegalArgumentException("The specified user is not a Coordinator.");
+            throw new BadRequestException("The specified user is not a Coordinator.");
         Club club = Club.builder()
                 .name(req.getName()).description(req.getDescription())
                 .vision(req.getVision()).mission(req.getMission())
@@ -68,7 +71,7 @@ public class ClubService {
                 .orElseThrow(() -> new ResourceNotFoundException("Club not found: " + clubId));
         if (currentUser.getRole() == Role.COORDINATOR
                 && (club.getCoordinator() == null || !club.getCoordinator().getId().equals(currentUser.getId())))
-            throw new IllegalArgumentException("You are not the coordinator of this club.");
+            throw new UnauthorizedException("You are not the coordinator of this club.");
         if (req.getName()        != null) club.setName(req.getName());
         if (req.getDepartment()  != null) club.setDepartment(req.getDepartment());
         if (req.getFoundedYear() != null) club.setFoundedYear(req.getFoundedYear());

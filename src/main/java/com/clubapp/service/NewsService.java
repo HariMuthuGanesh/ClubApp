@@ -6,6 +6,7 @@ import com.clubapp.entity.News;
 import com.clubapp.entity.Role;
 import com.clubapp.entity.User;
 import com.clubapp.exception.ResourceNotFoundException;
+import com.clubapp.exception.UnauthorizedException;
 import com.clubapp.repository.ClubRepository;
 import com.clubapp.repository.NewsRepository;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +31,7 @@ public class NewsService {
         
         if (currentUser.getRole() == Role.COORDINATOR && 
             (club.getCoordinator() == null || !club.getCoordinator().getId().equals(currentUser.getId()))) {
-            throw new IllegalArgumentException("You can only post news for your own club.");
+            throw new UnauthorizedException("You can only post news for your own club.");
         }
 
         News news = News.builder()
@@ -70,7 +71,7 @@ public class NewsService {
         
         if (currentUser.getRole() == Role.COORDINATOR && 
             (news.getClub().getCoordinator() == null || !news.getClub().getCoordinator().getId().equals(currentUser.getId()))) {
-            throw new IllegalArgumentException("Access denied.");
+            throw new UnauthorizedException("Access denied.");
         }
         
         newsRepository.delete(news);

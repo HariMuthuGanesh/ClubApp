@@ -3,7 +3,10 @@ package com.clubapp.service;
 import com.clubapp.dto.response.JoinRequestResponse;
 import com.clubapp.dto.response.UserResponse;
 import com.clubapp.entity.*;
+import com.clubapp.exception.BadRequestException;
+import com.clubapp.exception.ConflictException;
 import com.clubapp.exception.ResourceNotFoundException;
+import com.clubapp.exception.UnauthorizedException;
 import com.clubapp.repository.ClubJoinRequestRepository;
 import com.clubapp.repository.ClubRepository;
 import com.clubapp.repository.UserRepository;
@@ -28,16 +31,16 @@ public class ClubJoinRequestService {
     @Transactional
     public JoinRequestResponse sendRequest(Long clubId, User user, String message) {
         if (user.getRole() == Role.ADMIN)
-            throw new IllegalArgumentException("Admin cannot join clubs.");
+            throw new BadRequestException("Admin cannot join clubs.");
         Club club = clubRepository.findById(clubId)
                 .orElseThrow(() -> new ResourceNotFoundException("Club not found: " + clubId));
         if (club.getMembers().stream().anyMatch(m -> m.getId().equals(user.getId())))
-            throw new IllegalArgumentException("You are already a member of this club.");
+            throw new ConflictException("You are already a member of this club.");
         Optional<ClubJoinRequest> existing = joinRequestRepository.findByUserAndClub(user, club);
         if (existing.isPresent()) {
             ClubJoinRequest req = existing.get();
             if (req.getStatus() == JoinRequestStatus.PENDING)
-                throw new IllegalArgumentException("You already have a pending request.");
+                throw new ConflictException("You already have a pending request.");
             req.setStatus(JoinRequestStatus.PENDING);
             req.setMessage(message);
             req.setRequestedAt(LocalDateTime.now());
@@ -99,7 +102,7 @@ public class ClubJoinRequestService {
         User student = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
         if (club.getMembers().stream().noneMatch(m -> m.getId().equals(userId)))
-            throw new IllegalArgumentException("User is not a member of your club.");
+            throw new BadRequestException("User is not a member of your club.");
         student.setRole(Role.COORDINATOR);
         club.setCoordinator(student);
         clubRepository.save(club);
@@ -111,7 +114,7 @@ public class ClubJoinRequestService {
                 .orElseThrow(() -> new ResourceNotFoundException("Request not found: " + requestId));
         if (coordinator.getRole() != Role.ADMIN
                 && (request.getClub().getCoordinator() == null || !request.getClub().getCoordinator().getId().equals(coordinator.getId())))
-            throw new IllegalArgumentException("You are not the coordinator of this club.");
+            throw new UnauthorizedException("You are not the coordinator of this club.");
         return request;
     }
 
